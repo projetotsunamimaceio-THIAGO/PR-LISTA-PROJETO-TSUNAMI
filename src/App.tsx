@@ -72,6 +72,7 @@ export default function App() {
   const [enrollments, setEnrollments] = useState<EnrollmentRecord[]>([]);
   const [enrollmentsLocked, setEnrollmentsLocked] = useState(false);
   const [absenceJustificationOpen, setAbsenceJustificationOpen] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string>('');
 
   // Student Flow State
   const [studentStep, setStudentStep] = useState<1 | 2 | 3>(1);
@@ -92,6 +93,7 @@ export default function App() {
         if (data.classes) setClasses(data.classes);
         if (data.enrollmentsLocked !== undefined) setEnrollmentsLocked(data.enrollmentsLocked);
         if (data.absenceJustificationOpen !== undefined) setAbsenceJustificationOpen(data.absenceJustificationOpen);
+        if (data.logoUrl !== undefined) setLogoUrl(data.logoUrl);
       }
     });
     return () => unsubscribe();
@@ -147,6 +149,26 @@ export default function App() {
     } catch (e) {
       console.error("Erro ao alternar justificativa", e);
     }
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result as string;
+      setLogoUrl(base64String);
+      try {
+        await setDoc(doc(db, "config", "settings"), {
+          logoUrl: base64String,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch (err) {
+        console.error("Erro ao salvar logo", err);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const totalStudents = students.length;
@@ -578,6 +600,30 @@ export default function App() {
                   </div>
 
                   <div className="mb-6">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">
+                      Logo do Projeto
+                    </h3>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-slate-950/50 border border-slate-700/50 flex items-center justify-center overflow-hidden shrink-0">
+                        {logoUrl ? (
+                          <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-slate-600 text-[10px] font-bold uppercase">SEM LOGO</span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase tracking-widest py-2 px-4 rounded-xl transition-colors inline-block text-center border border-slate-700/50 w-full">
+                          Alterar Logo
+                          <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                        </label>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-2 text-center md:text-left">
+                          Formatos: JPG, PNG
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-6">
                     <div className="flex justify-between items-center mb-3">
                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">
                          Justificativa de Ausência
@@ -929,8 +975,12 @@ export default function App() {
                       PRÉ-INSCRIÇÕES<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-sky-200">TSUNAMI</span>
                     </h1>
                   </div>
-                  <div className="w-14 h-14 md:w-20 md:h-20 rounded-full flex items-center justify-center shrink-0">
-                    <img src="/logo.png" alt="Tsunami Logo" className="w-full h-full object-contain" />
+                  <div className="w-14 h-14 md:w-20 md:h-20 rounded-full flex items-center justify-center shrink-0 overflow-hidden bg-slate-950/50 border border-slate-800">
+                    {logoUrl ? (
+                      <img src={logoUrl} alt="Tsunami Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-white font-black text-xl md:text-2xl">TS</span>
+                    )}
                   </div>
                 </div>
                 
