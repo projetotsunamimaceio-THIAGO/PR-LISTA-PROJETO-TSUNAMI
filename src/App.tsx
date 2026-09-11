@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { LogIn, Lock, ArrowLeft, Plus, Trash2, LogOut, RefreshCw, Search, X } from "lucide-react";
-import { doc, setDoc, onSnapshot, collection, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDocs, deleteDoc, onSnapshot, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "./lib/firebase";
 
 type ClassDay = 'TERÇA' | 'SEXTA' | 'SÁBADO';
@@ -18,6 +18,12 @@ interface Student {
   name: string;
   password?: string;
   isAllowed: boolean;
+}
+
+interface EnrollmentRecord {
+  studentId: string;
+  classes: string[];
+  updatedAt: number;
 }
 
 export default function App() {
@@ -60,7 +66,7 @@ export default function App() {
   const [studentSearch, setStudentSearch] = useState('');
 
   // Enrollments (Firebase)
-  const [enrollments, setEnrollments] = useState<Record<string, string[]>>({});
+  const [enrollments, setEnrollments] = useState<EnrollmentRecord[]>([]);
 
   // Student Flow State
   const [studentStep, setStudentStep] = useState<1 | 2 | 3>(1);
@@ -72,9 +78,14 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "enrollments"), (snapshot) => {
-      const newEnrollments: Record<string, string[]> = {};
+      const newEnrollments: EnrollmentRecord[] = [];
       snapshot.forEach(doc => {
-        newEnrollments[doc.id] = doc.data().classes || [];
+        const data = doc.data();
+        newEnrollments.push({
+          studentId: doc.id,
+          classes: data.classes || [],
+          updatedAt: data.updatedAt?.toMillis?.() || Date.now(),
+        });
       });
       setEnrollments(newEnrollments);
     });
@@ -123,6 +134,21 @@ export default function App() {
 
   const updateClassDescription = (id: string, description: string) => {
     setClasses(classes.map(c => c.id === id ? { ...c, description } : c));
+  };
+
+  const handleReset = async () => {
+    // Reset local state for students and classes
+    setStudents(students.map(s => ({ ...s, isAllowed: true })));
+    setClasses(classes.map(c => ({ ...c, isOpen: true })));
+
+    // Delete all enrollments in Firestore
+    try {
+      const snapshot = await getDocs(collection(db, "enrollments"));
+      const deletePromises = snapshot.docs.map(docSnap => deleteDoc(doc(db, "enrollments", docSnap.id)));
+      await Promise.all(deletePromises);
+    } catch (e) {
+      console.error("Erro ao resetar inscrições no Firebase", e);
+    }
   };
 
   // Sync Data (real CSV fetch with fallback)
@@ -211,7 +237,8 @@ export default function App() {
     if (student.password === studentPasswordInput) {
       setStudentFlowError('');
       // Pre-fill previously selected classes if any
-      setSelectedClasses(enrollments[student.id] || []);
+      const existingEnrollment = enrollments.find(e => e.studentId === student.id);
+      setSelectedClasses(existingEnrollment ? existingEnrollment.classes : []);
       setStudentStep(3);
     } else {
       setStudentFlowError('Senha incorreta.');
@@ -311,7 +338,10 @@ export default function App() {
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} /> 
                 {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
               </button>
-              <button className="bg-transparent border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold text-xs uppercase tracking-widest py-2.5 px-5 rounded-full flex items-center gap-2 transition-colors">
+              <button 
+                onClick={handleReset}
+                className="bg-transparent border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold text-xs uppercase tracking-widest py-2.5 px-5 rounded-full flex items-center gap-2 transition-colors"
+              >
                 <Trash2 className="w-4 h-4" /> Resetar
               </button>
             </div>
@@ -550,7 +580,7 @@ export default function App() {
               
               <div className="flex-1 max-h-[300px] overflow-y-auto custom-scrollbar pr-2 space-y-2">
                 {students
-                  .filter(s => s.name.toLowerCase().includes(studentSearchInput.toLowerCase()))
+                  .filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase()))
                   .map(s => (
                   <button 
                     key={s.id}
@@ -755,7 +785,10 @@ export default function App() {
                   {/* Mocked enrolled student list placeholder for the class */}
                   <div className="space-y-2">
                     {(() => {
-                      const enrolledIds = Object.keys(enrollments).filter(studentId => enrollments[studentId].includes(cls.id));
+                      const enrolledIds = enrollments
+                        .filter(e => e.classes.includes(cls.id))
+                        .sort((a, b) => a.updatedAt - b.updatedAt)
+                        .map(e => e.studentId);
                       const maxVagas = cls.multiplier * 5;
                       
                       if (enrolledIds.length === 0) {
