@@ -1,0 +1,8 @@
+{
+  "name": "Projeto Tsunami",
+  "description": "App para alunos confirmarem participação em turmas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
