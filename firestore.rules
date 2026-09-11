@@ -4,5 +4,8 @@ service cloud.firestore {
     match /enrollments/{studentId} {
       allow read, write: if true;
     }
+    match /config/{document=**} {
+      allow read, write: if true;
+    }
   }
 }

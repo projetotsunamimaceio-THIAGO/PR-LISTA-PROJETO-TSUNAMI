@@ -76,6 +76,18 @@ export default function App() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [studentFlowError, setStudentFlowError] = useState('');
 
+  // Config Subscription (Firebase)
+  useEffect(() => {
+    const unsubscribe = onSnapshot(doc(db, "config", "settings"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.students) setStudents(data.students);
+        if (data.classes) setClasses(data.classes);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "enrollments"), (snapshot) => {
       const newEnrollments: EnrollmentRecord[] = [];
@@ -91,6 +103,18 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  const saveConfig = async (newStudents: Student[], newClasses: ClassItem[]) => {
+    try {
+      await setDoc(doc(db, "config", "settings"), {
+        students: newStudents,
+        classes: newClasses,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (e) {
+      console.error("Erro ao salvar config no Firebase", e);
+    }
+  };
 
   const totalStudents = students.length;
 
@@ -113,33 +137,48 @@ export default function App() {
       multiplier: 1,
       isOpen: true,
     };
-    setClasses([...classes, newClass]);
+    const newClasses = [...classes, newClass];
+    setClasses(newClasses);
+    saveConfig(students, newClasses);
   };
 
   const removeClass = (id: string) => {
-    setClasses(classes.filter(c => c.id !== id));
+    const newClasses = classes.filter(c => c.id !== id);
+    setClasses(newClasses);
+    saveConfig(students, newClasses);
   };
 
   const toggleClassStatus = (id: string) => {
-    setClasses(classes.map(c => c.id === id ? { ...c, isOpen: !c.isOpen } : c));
+    const newClasses = classes.map(c => c.id === id ? { ...c, isOpen: !c.isOpen } : c);
+    setClasses(newClasses);
+    saveConfig(students, newClasses);
   };
 
   const setMultiplier = (id: string, multiplier: number) => {
-    setClasses(classes.map(c => c.id === id ? { ...c, multiplier } : c));
+    const newClasses = classes.map(c => c.id === id ? { ...c, multiplier } : c);
+    setClasses(newClasses);
+    saveConfig(students, newClasses);
   };
 
   const updateClassName = (id: string, name: string) => {
-    setClasses(classes.map(c => c.id === id ? { ...c, name } : c));
+    const newClasses = classes.map(c => c.id === id ? { ...c, name } : c);
+    setClasses(newClasses);
+    saveConfig(students, newClasses);
   };
 
   const updateClassDescription = (id: string, description: string) => {
-    setClasses(classes.map(c => c.id === id ? { ...c, description } : c));
+    const newClasses = classes.map(c => c.id === id ? { ...c, description } : c);
+    setClasses(newClasses);
+    saveConfig(students, newClasses);
   };
 
   const handleReset = async () => {
     // Reset local state for students and classes
-    setStudents(students.map(s => ({ ...s, isAllowed: true })));
-    setClasses(classes.map(c => ({ ...c, isOpen: true })));
+    const newStudents = students.map(s => ({ ...s, isAllowed: true }));
+    const newClasses = classes.map(c => ({ ...c, isOpen: true }));
+    setStudents(newStudents);
+    setClasses(newClasses);
+    saveConfig(newStudents, newClasses);
 
     // Delete all enrollments in Firestore
     try {
@@ -171,7 +210,18 @@ export default function App() {
         
         if (newStudents.length > 0) {
           const sortedStudents = newStudents.sort((a, b) => a.name.localeCompare(b.name));
-          setStudents(sortedStudents);
+          
+          // Preserve the isAllowed status from existing students if they exist
+          const mergedStudents = sortedStudents.map(newS => {
+            const existing = students.find(oldS => oldS.name === newS.name);
+            if (existing) {
+              return { ...newS, isAllowed: existing.isAllowed };
+            }
+            return newS;
+          });
+
+          setStudents(mergedStudents);
+          saveConfig(mergedStudents, classes);
           setIsSyncing(false);
           return;
         }
@@ -181,27 +231,35 @@ export default function App() {
     }
     
     // Fallback
-    setStudents([
+    const fallbackStudents = [
       { id: '1', name: 'ADRYAN ALVES', password: 'abc123', isAllowed: true },
       { id: '2', name: 'ANA CLARA (IRMÃ MATEUS XEREBA) - 14', password: 'abc123', isAllowed: true },
       { id: '3', name: 'ANA JÚLIA (IRMÃ DA GABI)', password: 'abc123', isAllowed: true },
       { id: '4', name: 'ANDERSON RENAN - 15', password: 'abc123', isAllowed: true },
       { id: '5', name: 'ANDREY ALVES DA SILVA', password: 'abc123', isAllowed: true },
       { id: '6', name: 'ANTÔNIO MIGUEL SANTOS', password: 'abc123', isAllowed: true },
-    ]);
+    ];
+    setStudents(fallbackStudents);
+    saveConfig(fallbackStudents, classes);
     setIsSyncing(false);
   };
 
   const toggleStudentAllowed = (id: string, allowed: boolean) => {
-    setStudents(students.map(s => s.id === id ? { ...s, isAllowed: allowed } : s));
+    const newStudents = students.map(s => s.id === id ? { ...s, isAllowed: allowed } : s);
+    setStudents(newStudents);
+    saveConfig(newStudents, classes);
   };
 
   const allowAllStudents = () => {
-    setStudents(students.map(s => ({ ...s, isAllowed: true })));
+    const newStudents = students.map(s => ({ ...s, isAllowed: true }));
+    setStudents(newStudents);
+    saveConfig(newStudents, classes);
   };
 
   const blockAllStudents = () => {
-    setStudents(students.map(s => ({ ...s, isAllowed: false })));
+    const newStudents = students.map(s => ({ ...s, isAllowed: false }));
+    setStudents(newStudents);
+    saveConfig(newStudents, classes);
   };
 
   const filteredStudents = students.filter(s => 
