@@ -19,6 +19,8 @@ interface Student {
   name: string;
   password?: string;
   isAllowed: boolean;
+  behaviorScore?: number;
+  infractions?: string[];
 }
 
 interface EnrollmentRecord {
@@ -85,6 +87,35 @@ export default function App() {
   // Justification Flow State
   const [justificationStep, setJustificationStep] = useState<1 | 2 | 3>(1);
   const [absenceReason, setAbsenceReason] = useState('');
+
+  // Behavior Evaluation State
+  const [behaviorSearchInput, setBehaviorSearchInput] = useState('');
+  const [selectedBehaviorStudentId, setSelectedBehaviorStudentId] = useState<string | null>(null);
+
+  const handleApplyBehaviorPenalty = async (studentId: string, penalty: number, reason: string) => {
+    const updatedStudents = students.map(s => {
+      if (s.id === studentId) {
+        const currentScore = s.behaviorScore !== undefined ? s.behaviorScore : 10;
+        const newScore = Math.max(0, currentScore - penalty);
+        const newInfractions = [...(s.infractions || []), reason];
+        return { ...s, behaviorScore: newScore, infractions: newInfractions };
+      }
+      return s;
+    });
+    setStudents(updatedStudents); // Optimistic UI update
+    await saveConfig(updatedStudents, classes);
+  };
+
+  const handleResetBehavior = async (studentId: string) => {
+    const updatedStudents = students.map(s => {
+      if (s.id === studentId) {
+        return { ...s, behaviorScore: 10, infractions: [] };
+      }
+      return s;
+    });
+    setStudents(updatedStudents); // Optimistic UI update
+    await saveConfig(updatedStudents, classes);
+  };
 
   // Config Subscription (Firebase)
   useEffect(() => {
@@ -781,6 +812,61 @@ export default function App() {
                         </div>
                       ))
                     )}
+                  </div>
+                </div>
+
+                {/* Avaliação de Comportamento */}
+                <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col h-[600px] shadow-lg shadow-black/10">
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="w-1.5 h-5 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>
+                    <h3 className="text-lg font-black text-white tracking-tight">Comportamento</h3>
+                  </div>
+
+                  <div className="relative mb-6 shrink-0">
+                    <Search className="w-4 h-4 absolute left-4 top-3.5 text-slate-500" />
+                    <input 
+                      type="text" 
+                      placeholder="Pesquisar aluno..." 
+                      value={behaviorSearchInput}
+                      onChange={(e) => setBehaviorSearchInput(e.target.value)}
+                      className="w-full bg-slate-950/50 border border-slate-700/50 rounded-2xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"
+                    />
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-3 space-y-3">
+                    {students.filter(s => s.isAllowed && s.name.toLowerCase().includes(behaviorSearchInput.toLowerCase())).map(student => (
+                      <div key={student.id} className="border border-slate-700/50 rounded-2xl p-4 bg-slate-800/40 flex flex-col gap-3">
+                        <div className="flex justify-between items-center cursor-pointer" onClick={() => setSelectedBehaviorStudentId(selectedBehaviorStudentId === student.id ? null : student.id)}>
+                          <h4 className="font-bold text-sm tracking-tight uppercase text-white line-clamp-1">{student.name}</h4>
+                          <div className={`px-3 py-1 rounded-lg text-xs font-black ${(student.behaviorScore ?? 10) >= 7 ? 'bg-emerald-500/20 text-emerald-400' : (student.behaviorScore ?? 10) >= 4 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                            Nota: {student.behaviorScore ?? 10}
+                          </div>
+                        </div>
+
+                        {selectedBehaviorStudentId === student.id && (
+                          <div className="pt-3 border-t border-slate-700/50 mt-1 flex flex-col gap-2">
+                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Aplicar Punição:</p>
+                            <div className="flex flex-wrap gap-2">
+                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 1, 'Conversando')} className="px-3 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-900/50 rounded-lg text-[10px] font-black uppercase transition-all">-1 Conversando</button>
+                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 2, 'Conversando Muito')} className="px-3 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-900/50 rounded-lg text-[10px] font-black uppercase transition-all">-2 Conversando Muito</button>
+                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 1, 'Brincadeira')} className="px-3 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-900/50 rounded-lg text-[10px] font-black uppercase transition-all">-1 Brincadeira</button>
+                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 2, 'Celular')} className="px-3 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-900/50 rounded-lg text-[10px] font-black uppercase transition-all">-2 Celular</button>
+                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 1, 'Sem Atenção')} className="px-3 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-900/50 rounded-lg text-[10px] font-black uppercase transition-all">-1 Sem Atenção</button>
+                            </div>
+                            
+                            {student.infractions && student.infractions.length > 0 && (
+                               <div className="mt-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                                 <p className="text-[9px] uppercase font-bold text-rose-400 tracking-widest mb-1.5">Histórico de Punições:</p>
+                                 <p className="text-[10px] text-rose-200/80 mb-3">{student.infractions.join(', ')}</p>
+                                 <button onClick={() => handleResetBehavior(student.id)} className="w-full px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                                   Restaurar Nota 10
+                                 </button>
+                               </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
