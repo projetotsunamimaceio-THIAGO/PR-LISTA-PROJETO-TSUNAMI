@@ -30,7 +30,7 @@ interface EnrollmentRecord {
 }
 
 export default function App() {
-  const [view, setView] = useState<'home' | 'adminLogin' | 'adminPanel' | 'studentFlow'>('home');
+  const [view, setView] = useState<'home' | 'adminLogin' | 'adminPanel' | 'studentFlow' | 'justificationFlow'>('home');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
@@ -74,15 +74,17 @@ export default function App() {
   const [absenceJustificationOpen, setAbsenceJustificationOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string>('');
 
-  // Student Flow State
+  // Student Flow State (Enrollment)
   const [studentStep, setStudentStep] = useState<1 | 2 | 3>(1);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [studentPasswordInput, setStudentPasswordInput] = useState('');
   const [studentSearchInput, setStudentSearchInput] = useState('');
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
-  const [isAbsenceJustified, setIsAbsenceJustified] = useState(false);
-  const [absenceReason, setAbsenceReason] = useState('');
   const [studentFlowError, setStudentFlowError] = useState('');
+
+  // Justification Flow State
+  const [justificationStep, setJustificationStep] = useState<1 | 2 | 3>(1);
+  const [absenceReason, setAbsenceReason] = useState('');
 
   // Config Subscription (Firebase)
   useEffect(() => {
@@ -321,13 +323,21 @@ export default function App() {
     setStudentPasswordInput('');
     setStudentSearchInput('');
     setSelectedClasses([]);
-    setIsAbsenceJustified(false);
-    setAbsenceReason('');
     setStudentFlowError('');
     setView('studentFlow');
   };
 
-  const handleSelectStudent = (id: string) => {
+  const startJustificationFlow = () => {
+    setJustificationStep(1);
+    setSelectedStudentId(null);
+    setStudentPasswordInput('');
+    setStudentSearchInput('');
+    setAbsenceReason('');
+    setStudentFlowError('');
+    setView('justificationFlow');
+  };
+
+  const handleSelectStudent = (id: string, flow: 'enrollment' | 'justification' = 'enrollment') => {
     const student = students.find(s => s.id === id);
     if (!student) return;
     if (!student.isAllowed) {
@@ -336,54 +346,73 @@ export default function App() {
     }
     setStudentFlowError('');
     setSelectedStudentId(id);
-    setStudentStep(2);
+    if (flow === 'justification') {
+      setJustificationStep(2);
+    } else {
+      setStudentStep(2);
+    }
   };
 
-  const handleValidatePassword = () => {
+  const handleValidatePassword = (flow: 'enrollment' | 'justification' = 'enrollment') => {
     const student = students.find(s => s.id === selectedStudentId);
     if (!student) return;
     if (student.password === studentPasswordInput) {
       setStudentFlowError('');
       const existingEnrollment = enrollments.find(e => e.studentId === student.id);
-      setSelectedClasses(existingEnrollment ? existingEnrollment.classes : []);
-      setIsAbsenceJustified(existingEnrollment?.justifiedAbsence || false);
-      setAbsenceReason(existingEnrollment?.absenceReason || '');
-      setStudentStep(3);
+      
+      if (flow === 'justification') {
+        setAbsenceReason(existingEnrollment?.absenceReason || '');
+        setJustificationStep(3);
+      } else {
+        setSelectedClasses(existingEnrollment ? existingEnrollment.classes : []);
+        setStudentStep(3);
+      }
     } else {
       setStudentFlowError('Senha incorreta.');
     }
   };
 
   const toggleStudentClass = (classId: string) => {
-    setIsAbsenceJustified(false);
     setSelectedClasses(prev => 
       prev.includes(classId) ? prev.filter(id => id !== classId) : [...prev, classId]
     );
   };
 
-  const toggleStudentAbsence = () => {
-    setIsAbsenceJustified(prev => !prev);
-    setSelectedClasses([]); // mutually exclusive
-  };
-
   const handleFinishEnrollment = async () => {
     if (!selectedStudentId) return;
 
-    if (isAbsenceJustified && absenceReason.trim() === '') {
+    try {
+      await setDoc(doc(db, "enrollments", selectedStudentId), {
+        classes: selectedClasses,
+        justifiedAbsence: false,
+        absenceReason: null,
+        updatedAt: serverTimestamp()
+      });
+      setView('home');
+    } catch (e) {
+      console.error("Erro ao salvar inscrições", e);
+      setStudentFlowError('Erro ao salvar. Tente novamente.');
+    }
+  };
+
+  const handleFinishJustification = async () => {
+    if (!selectedStudentId) return;
+
+    if (absenceReason.trim() === '') {
       setStudentFlowError('Por favor, escreva a justificativa da sua ausência.');
       return;
     }
 
     try {
       await setDoc(doc(db, "enrollments", selectedStudentId), {
-        classes: isAbsenceJustified ? [] : selectedClasses,
-        justifiedAbsence: isAbsenceJustified,
-        absenceReason: isAbsenceJustified ? absenceReason.trim() : null,
+        classes: [],
+        justifiedAbsence: true,
+        absenceReason: absenceReason.trim(),
         updatedAt: serverTimestamp()
       });
       setView('home');
     } catch (e) {
-      console.error("Erro ao salvar inscrições", e);
+      console.error("Erro ao salvar justificativa", e);
       setStudentFlowError('Erro ao salvar. Tente novamente.');
     }
   };
@@ -867,37 +896,7 @@ export default function App() {
                 
                 <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col">
                   <div className="flex-1 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 space-y-3 mb-6">
-                    {absenceJustificationOpen && (
-                      <div className={`rounded-2xl transition-all border mb-6 overflow-hidden ${isAbsenceJustified ? 'bg-rose-500/10 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.15)]' : 'bg-slate-800/40 border-slate-700/50 hover:border-rose-500/50'}`}>
-                        <button 
-                          onClick={toggleStudentAbsence}
-                          className="w-full text-left p-5 md:p-6"
-                        >
-                          <div className="flex justify-between items-center">
-                            <span className={`text-sm md:text-base font-black uppercase tracking-tight ${isAbsenceJustified ? 'text-rose-400' : 'text-slate-300'}`}>
-                              JUSTIFICAR AUSÊNCIA ARENA
-                            </span>
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isAbsenceJustified ? 'bg-rose-500 border-rose-500' : 'border-slate-500'}`}>
-                                {isAbsenceJustified && <Check className="w-3 h-3 text-slate-950" />}
-                            </div>
-                          </div>
-                          <p className={`text-xs mt-2 ${isAbsenceJustified ? 'text-rose-400/70' : 'text-slate-500'}`}>Escreva sua justificativa que será analisada e validada.</p>
-                        </button>
-
-                        {isAbsenceJustified && (
-                          <div className="px-5 pb-5 md:px-6 md:pb-6">
-                             <textarea 
-                               placeholder="Escreva aqui o motivo da ausência..."
-                               value={absenceReason}
-                               onChange={(e) => setAbsenceReason(e.target.value)}
-                               className="w-full bg-slate-950/50 border border-rose-500/30 rounded-xl p-4 text-sm text-rose-100 placeholder:text-rose-900/50 resize-none h-24 focus:outline-none focus:border-rose-500 transition-colors"
-                             />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="space-y-3 opacity-100 transition-opacity" style={{ opacity: isAbsenceJustified ? 0.3 : 1, pointerEvents: isAbsenceJustified ? 'none' : 'auto' }}>
+                    <div className="space-y-3">
                       {classes.filter(c => c.isOpen).map(c => {
                         const isSelected = selectedClasses.includes(c.id);
                         return (
@@ -940,6 +939,139 @@ export default function App() {
                       className="sm:w-2/3 bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-slate-950 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-all shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:-translate-y-0.5"
                     >
                       Concluir Inscrição
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+
+        {/* =========================================================================
+            JUSTIFICATION FLOW VIEW
+        ========================================================================= */}
+        {view === 'justificationFlow' && (
+          <motion.div key="justificationFlow" {...pageTransition} className="min-h-screen flex items-center justify-center p-4 md:p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-950/40 via-slate-950 to-slate-950">
+            {justificationStep === 1 && (
+              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
+                <div className="text-center mb-8">
+                  <span className="inline-block px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black tracking-widest uppercase mb-4">Passo 01 de 03</span>
+                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-2 text-white">Justificar</h1>
+                  <p className="text-slate-400 text-sm">Selecione o seu nome na lista.</p>
+                </div>
+                
+                <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col">
+                  <div className="relative mb-6">
+                    <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input 
+                      type="text"
+                      placeholder="BUSCAR NOME..."
+                      value={studentSearchInput}
+                      onChange={(e) => setStudentSearchInput(e.target.value)}
+                      className="w-full bg-slate-950/50 border border-slate-700/50 rounded-2xl pl-12 pr-4 py-4 text-sm font-bold tracking-widest uppercase text-white focus:outline-none focus:border-rose-500 transition-colors"
+                    />
+                  </div>
+
+                  <div className="flex-1 max-h-[350px] overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                    {students.filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase())).map(s => (
+                      <button 
+                        key={s.id}
+                        onClick={() => handleSelectStudent(s.id, 'justification')}
+                        className="w-full text-left bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/50 hover:border-rose-500/50 rounded-xl p-4 transition-all"
+                      >
+                        <span className="text-sm font-black uppercase tracking-tight text-slate-200">{s.name}</span>
+                      </button>
+                    ))}
+                    {students.filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase())).length === 0 && (
+                       <p className="text-center text-slate-500 text-sm py-8">Nenhum nome encontrado.</p>
+                    )}
+                  </div>
+                  {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mt-4 bg-rose-500/10 py-2 rounded-lg">{studentFlowError}</p>}
+                </div>
+
+                <button 
+                  onClick={() => setView('home')}
+                  className="mt-8 text-slate-500 hover:text-rose-400 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Cancelar e Voltar
+                </button>
+              </motion.div>
+            )}
+
+            {justificationStep === 2 && (
+              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
+                <div className="text-center mb-8">
+                  <span className="inline-block px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black tracking-widest uppercase mb-4">Passo 02 de 03</span>
+                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-4 text-white">Segurança</h1>
+                  <div className="inline-block px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl">
+                    <p className="text-rose-300 text-xs md:text-sm uppercase font-black tracking-widest">
+                      {students.find(s => s.id === selectedStudentId)?.name}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col gap-6">
+                  <div>
+                    <input 
+                      type="password"
+                      value={studentPasswordInput}
+                      onChange={(e) => setStudentPasswordInput(e.target.value)}
+                      placeholder="DIGITE SUA SENHA"
+                      className="w-full bg-slate-950/60 border border-slate-700/50 rounded-2xl px-6 py-4 text-center text-lg font-black tracking-widest uppercase text-white focus:outline-none focus:border-rose-500 transition-colors"
+                    />
+                    {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mt-3 bg-rose-500/10 py-2 rounded-lg">{studentFlowError}</p>}
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row gap-3 mt-2">
+                    <button 
+                      onClick={() => setJustificationStep(1)}
+                      className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-colors"
+                    >
+                      Voltar
+                    </button>
+                    <button 
+                      onClick={() => handleValidatePassword('justification')}
+                      className="flex-1 bg-gradient-to-r from-rose-500 to-rose-400 hover:from-rose-400 hover:to-rose-300 text-slate-950 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-all shadow-[0_4px_14px_0_rgba(244,63,94,0.39)]"
+                    >
+                      Validar Senha
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {justificationStep === 3 && (
+              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
+                <div className="text-center mb-8">
+                  <span className="inline-block px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black tracking-widest uppercase mb-4">Passo Final</span>
+                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-2 text-white">Motivo</h1>
+                  <p className="text-slate-400 text-sm">Escreva por que você não poderá treinar.</p>
+                </div>
+                
+                <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col">
+                  <div className="mb-6">
+                    <textarea 
+                      placeholder="Escreva aqui sua justificativa, ela será analisada..."
+                      value={absenceReason}
+                      onChange={(e) => setAbsenceReason(e.target.value)}
+                      className="w-full bg-slate-950/50 border border-rose-500/30 rounded-xl p-4 text-sm text-rose-100 placeholder:text-rose-900/50 resize-none h-32 focus:outline-none focus:border-rose-500 transition-colors"
+                    />
+                  </div>
+
+                  {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mb-4 bg-rose-500/10 py-2 rounded-lg">{studentFlowError}</p>}
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button 
+                      onClick={() => setJustificationStep(2)}
+                      className="sm:w-1/3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-colors"
+                    >
+                      Voltar
+                    </button>
+                    <button 
+                      onClick={handleFinishJustification}
+                      className="sm:w-2/3 bg-gradient-to-r from-rose-500 to-rose-400 hover:from-rose-400 hover:to-rose-300 text-slate-950 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-all shadow-[0_4px_14px_0_rgba(244,63,94,0.39)] hover:-translate-y-0.5"
+                    >
+                      Enviar Justificativa
                     </button>
                   </div>
                 </div>
@@ -1135,6 +1267,25 @@ export default function App() {
                   </div>
                 )}
               </div>
+
+              {/* Justification CTA at the bottom */}
+              {absenceJustificationOpen && (
+                <div className="mt-8 relative group">
+                  <div className="absolute inset-0 rounded-[2rem] blur opacity-25 transition-opacity duration-500 bg-rose-500 group-hover:opacity-40"></div>
+                  <div className="relative bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-[2rem] p-6 text-center shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-left">
+                      <h3 className="text-rose-400 font-black text-sm md:text-base uppercase tracking-widest mb-1">Não vai poder ir?</h3>
+                      <p className="text-slate-400 text-xs font-medium">Avise a organização justificando sua ausência.</p>
+                    </div>
+                    <button 
+                      onClick={startJustificationFlow}
+                      className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 border border-rose-500/30 hover:border-rose-500/50 text-rose-300 font-black text-xs uppercase tracking-widest py-3 px-6 rounded-xl transition-all"
+                    >
+                      Justificar Ausência
+                    </button>
+                  </div>
+                </div>
+              )}
 
             </div>
           </motion.div>
