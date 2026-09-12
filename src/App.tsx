@@ -1296,7 +1296,7 @@ export default function App() {
                                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${isWaitlist ? 'bg-rose-900/30 text-rose-400' : 'bg-slate-950 text-slate-400'}`}>
                                           {idx + 1}
                                         </div>
-                                        <span className={`text-xs md:text-sm font-bold uppercase truncate max-w-[200px] md:max-w-[300px] ${isWaitlist ? 'text-rose-200/70' : 'text-slate-200'}`}>
+                                        <span className={`text-xs md:text-sm font-bold uppercase truncate max-w-[200px] md:max-w-[300px] ${isWaitlist ? 'text-rose-200/70' : 'text-emerald-400'}`}>
                                           {st?.name || 'Aluno Desconhecido'}
                                         </span>
                                         {isWaitlist && (
