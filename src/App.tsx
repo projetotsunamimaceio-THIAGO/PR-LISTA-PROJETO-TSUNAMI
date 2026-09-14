@@ -21,6 +21,7 @@ interface Student {
   isAllowed: boolean;
   behaviorScore?: number;
   infractions?: string[];
+  allowedClasses?: string[];
 }
 
 interface EnrollmentRecord {
@@ -328,6 +329,24 @@ export default function App() {
 
   const toggleStudentAllowed = (id: string, allowed: boolean) => {
     const newStudents = students.map(s => s.id === id ? { ...s, isAllowed: allowed } : s);
+    setStudents(newStudents);
+    saveConfig(newStudents, classes);
+  };
+
+  const toggleStudentAllowedClass = (studentId: string, classId: string) => {
+    const newStudents = students.map(s => {
+      if (s.id === studentId) {
+        let currentAllowed = s.allowedClasses;
+        if (!currentAllowed) {
+          currentAllowed = classes.map(c => c.id);
+        }
+        const newAllowed = currentAllowed.includes(classId) 
+          ? currentAllowed.filter(id => id !== classId)
+          : [...currentAllowed, classId];
+        return { ...s, allowedClasses: newAllowed };
+      }
+      return s;
+    });
     setStudents(newStudents);
     saveConfig(newStudents, classes);
   };
@@ -788,27 +807,52 @@ export default function App() {
                       </div>
                     ) : (
                       filteredStudents.map(student => (
-                        <div key={student.id} className={`border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${student.isAllowed ? 'bg-slate-800/40 border-slate-700/50' : 'bg-rose-950/10 border-rose-900/30'}`}>
-                          <div>
-                            <h4 className={`font-bold text-sm tracking-tight uppercase line-clamp-1 ${student.isAllowed ? 'text-white' : 'text-rose-200/50'}`} title={student.name}>
-                              {student.name}
-                            </h4>
-                            <p className="text-slate-500 text-[10px] mt-1 font-mono">SENHA: {student.password}</p>
+                        <div key={student.id} className={`border rounded-2xl p-4 flex flex-col gap-3 transition-colors ${student.isAllowed ? 'bg-slate-800/40 border-slate-700/50' : 'bg-rose-950/10 border-rose-900/30'}`}>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <h4 className={`font-bold text-sm tracking-tight uppercase line-clamp-1 ${student.isAllowed ? 'text-white' : 'text-rose-200/50'}`} title={student.name}>
+                                {student.name}
+                              </h4>
+                              <p className="text-slate-500 text-[10px] mt-1 font-mono">SENHA: {student.password}</p>
+                            </div>
+                            <div className="flex bg-slate-950 rounded-xl p-1 gap-1 shrink-0 border border-slate-800/80">
+                              <button 
+                                onClick={() => toggleStudentAllowed(student.id, true)}
+                                className={`px-5 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${student.isAllowed ? 'bg-emerald-500 text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                              >
+                                Liberar
+                              </button>
+                              <button 
+                                onClick={() => toggleStudentAllowed(student.id, false)}
+                                className={`px-5 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${!student.isAllowed ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                              >
+                                Bloquear
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex bg-slate-950 rounded-xl p-1 gap-1 shrink-0 border border-slate-800/80">
-                            <button 
-                              onClick={() => toggleStudentAllowed(student.id, true)}
-                              className={`px-5 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${student.isAllowed ? 'bg-emerald-500 text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                              Liberar
-                            </button>
-                            <button 
-                              onClick={() => toggleStudentAllowed(student.id, false)}
-                              className={`px-5 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${!student.isAllowed ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                              Bloquear
-                            </button>
-                          </div>
+                          
+                          {student.isAllowed && (
+                            <div className="pt-3 border-t border-slate-700/50 flex flex-col gap-2">
+                              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Turmas Permitidas:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {classes.map(c => {
+                                   const isChecked = student.allowedClasses ? student.allowedClasses.includes(c.id) : true;
+                                   return (
+                                     <button 
+                                       key={c.id} 
+                                       onClick={() => toggleStudentAllowedClass(student.id, c.id)}
+                                       className={`px-3 py-1.5 border rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-2 ${isChecked ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-950 text-slate-500 border-slate-800'}`}
+                                     >
+                                       <div className={`w-3 h-3 rounded-sm flex items-center justify-center border ${isChecked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600'}`}>
+                                         {isChecked && <Check className="w-2 h-2 text-slate-900" />}
+                                       </div>
+                                       {c.name}
+                                     </button>
+                                   );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))
                     )}
@@ -983,31 +1027,39 @@ export default function App() {
                 <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col">
                   <div className="flex-1 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 space-y-3 mb-6">
                     <div className="space-y-3">
-                      {classes.filter(c => c.isOpen).map(c => {
-                        const isSelected = selectedClasses.includes(c.id);
-                        return (
-                          <button 
-                            key={c.id}
-                            onClick={() => toggleStudentClass(c.id)}
-                            className={`w-full text-left rounded-2xl p-5 md:p-6 transition-all border ${isSelected ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'bg-slate-800/40 border-slate-700/50 hover:border-slate-500'}`}
-                          >
-                            <div className="flex justify-between items-center">
-                              <span className={`text-sm md:text-base font-black uppercase tracking-tight ${isSelected ? 'text-emerald-400' : 'text-slate-300'}`}>
-                                {c.name}
-                              </span>
-                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'}`}>
-                                  {isSelected && <Check className="w-3 h-3 text-slate-950" />}
-                              </div>
+                      {(() => {
+                        const student = students.find(s => s.id === selectedStudentId);
+                        const availableClasses = classes.filter(c => c.isOpen && (!student?.allowedClasses || student.allowedClasses.includes(c.id)));
+                        
+                        if (availableClasses.length === 0) {
+                          return (
+                            <div className="text-center py-10 bg-slate-950/50 rounded-2xl border border-slate-800">
+                              <p className="text-slate-500 text-sm uppercase tracking-widest font-bold">Nenhuma turma disponível para você no momento.</p>
                             </div>
-                            <p className={`text-xs mt-2 ${isSelected ? 'text-emerald-500/70' : 'text-slate-500'}`}>{c.description}</p>
-                          </button>
-                        )
-                      })}
-                      {classes.filter(c => c.isOpen).length === 0 && (
-                        <div className="text-center py-10 bg-slate-950/50 rounded-2xl border border-slate-800">
-                          <p className="text-slate-500 text-sm uppercase tracking-widest font-bold">Nenhuma turma aberta.</p>
-                        </div>
-                      )}
+                          );
+                        }
+
+                        return availableClasses.map(c => {
+                          const isSelected = selectedClasses.includes(c.id);
+                          return (
+                            <button 
+                              key={c.id}
+                              onClick={() => toggleStudentClass(c.id)}
+                              className={`w-full text-left rounded-2xl p-5 md:p-6 transition-all border ${isSelected ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'bg-slate-800/40 border-slate-700/50 hover:border-slate-500'}`}
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className={`text-sm md:text-base font-black uppercase tracking-tight ${isSelected ? 'text-emerald-400' : 'text-slate-300'}`}>
+                                  {c.name}
+                                </span>
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'}`}>
+                                    {isSelected && <Check className="w-3 h-3 text-slate-950" />}
+                                </div>
+                              </div>
+                              <p className={`text-xs mt-2 ${isSelected ? 'text-emerald-500/70' : 'text-slate-500'}`}>{c.description}</p>
+                            </button>
+                          )
+                        });
+                      })()}
                     </div>
                   </div>
 
