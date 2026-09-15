@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { LogIn, Lock, ArrowLeft, Plus, Trash2, LogOut, RefreshCw, Search, X, Check, ShieldAlert } from "lucide-react";
-import { doc, setDoc, getDocs, deleteDoc, onSnapshot, collection, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDocs, deleteDoc, onSnapshot, collection, serverTimestamp, addDoc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "./lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -30,6 +30,14 @@ interface EnrollmentRecord {
   updatedAt: number;
   justifiedAbsence?: boolean;
   absenceReason?: string;
+}
+
+interface ActivityLog {
+  id: string;
+  studentName: string;
+  action: 'enrolled' | 'unenrolled' | 'changed' | 'justified';
+  details: string;
+  timestamp: number;
 }
 
 export default function App() {
@@ -73,6 +81,7 @@ export default function App() {
 
   // Enrollments (Firebase)
   const [enrollments, setEnrollments] = useState<EnrollmentRecord[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [enrollmentsLocked, setEnrollmentsLocked] = useState(false);
   const [absenceJustificationOpen, setAbsenceJustificationOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string>('');
@@ -147,6 +156,25 @@ export default function App() {
         });
       });
       setEnrollments(newEnrollments);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "activity_logs"), orderBy("timestamp", "desc"), limit(50));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const logs: ActivityLog[] = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        logs.push({
+          id: doc.id,
+          studentName: data.studentName,
+          action: data.action,
+          details: data.details,
+          timestamp: data.timestamp?.toMillis?.() || Date.now()
+        });
+      });
+      setActivityLogs(logs);
     });
     return () => unsubscribe();
   }, []);
@@ -432,12 +460,45 @@ export default function App() {
     if (!selectedStudentId) return;
 
     try {
+      const student = students.find(s => s.id === selectedStudentId);
+      const studentName = student?.name || 'Aluno Desconhecido';
+      const existingEnrollment = enrollments.find(e => e.studentId === selectedStudentId);
+      const existingClasses = existingEnrollment ? existingEnrollment.classes : [];
+      
+      let action: 'enrolled' | 'unenrolled' | 'changed' = 'changed';
+      let details = '';
+
+      if (selectedClasses.length === 0 && existingClasses.length > 0) {
+        action = 'unenrolled';
+        details = 'Cancelou a inscrição em todas as turmas.';
+      } else if (existingClasses.length === 0 && selectedClasses.length > 0) {
+        action = 'enrolled';
+        const classNames = selectedClasses.map(cid => classes.find(c => c.id === cid)?.name).filter(Boolean).join(', ');
+        details = `Inscreveu-se em: ${classNames}`;
+      } else if (selectedClasses.length > 0) {
+        const classNames = selectedClasses.map(cid => classes.find(c => c.id === cid)?.name).filter(Boolean).join(', ');
+        details = `Alterou inscrição para: ${classNames}`;
+      } else {
+        // Did nothing
+        action = 'changed';
+        details = 'Salvou a inscrição vazia.';
+      }
+
       await setDoc(doc(db, "enrollments", selectedStudentId), {
         classes: selectedClasses,
         justifiedAbsence: false,
         absenceReason: null,
         updatedAt: serverTimestamp()
       });
+
+      // Add to activity logs
+      await addDoc(collection(db, "activity_logs"), {
+        studentName,
+        action,
+        details,
+        timestamp: serverTimestamp()
+      });
+
       setView('home');
     } catch (e) {
       console.error("Erro ao salvar inscrições", e);
@@ -454,12 +515,24 @@ export default function App() {
     }
 
     try {
+      const student = students.find(s => s.id === selectedStudentId);
+      const studentName = student?.name || 'Aluno Desconhecido';
+      
       await setDoc(doc(db, "enrollments", selectedStudentId), {
         classes: [],
         justifiedAbsence: true,
         absenceReason: absenceReason.trim(),
         updatedAt: serverTimestamp()
       });
+
+      // Add to activity logs
+      await addDoc(collection(db, "activity_logs"), {
+        studentName,
+        action: 'justified',
+        details: `Justificou ausência: ${absenceReason.trim()}`,
+        timestamp: serverTimestamp()
+      });
+
       setView('home');
     } catch (e) {
       console.error("Erro ao salvar justificativa", e);
@@ -913,8 +986,67 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-
               </div>
+
+              {/* Activity Logs (Full Width) */}
+              <div className="lg:col-span-12 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-black/20 mt-4">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-1.5 h-6 bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div>
+                  <h2 className="text-lg md:text-xl font-bold text-white tracking-tight uppercase">Histórico de Atividades</h2>
+                </div>
+                
+                {activityLogs.length === 0 ? (
+                  <div className="text-center py-8 bg-slate-950/50 rounded-2xl border border-slate-800">
+                    <p className="text-slate-500 text-sm uppercase tracking-widest font-bold">Nenhuma atividade recente.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-800">
+                          <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500">Data/Hora</th>
+                          <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500">Aluno</th>
+                          <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500">Ação</th>
+                          <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500">Detalhes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                        {activityLogs.map(log => {
+                          const date = new Date(log.timestamp);
+                          const dateString = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                          const timeString = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                          
+                          let actionColor = 'text-slate-300';
+                          if (log.action === 'enrolled') actionColor = 'text-emerald-400';
+                          else if (log.action === 'unenrolled') actionColor = 'text-rose-400';
+                          else if (log.action === 'justified') actionColor = 'text-amber-400';
+                          else if (log.action === 'changed') actionColor = 'text-sky-400';
+
+                          return (
+                            <tr key={log.id} className="hover:bg-slate-800/30 transition-colors">
+                              <td className="py-3 px-4 text-xs font-mono text-slate-400 whitespace-nowrap">
+                                {dateString} <span className="text-slate-600">|</span> {timeString}
+                              </td>
+                              <td className="py-3 px-4 text-sm font-bold text-white uppercase tracking-tight whitespace-nowrap">
+                                {log.studentName}
+                              </td>
+                              <td className={`py-3 px-4 text-[10px] font-black uppercase tracking-widest ${actionColor} whitespace-nowrap`}>
+                                {log.action === 'enrolled' ? 'Inscrição' : 
+                                 log.action === 'unenrolled' ? 'Cancelamento' : 
+                                 log.action === 'justified' ? 'Justificativa' : 'Alteração'}
+                              </td>
+                              <td className="py-3 px-4 text-xs text-slate-400">
+                                {log.details}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
             </div>
           </motion.div>
         )}
