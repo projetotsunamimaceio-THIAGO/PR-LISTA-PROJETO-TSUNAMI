@@ -175,6 +175,8 @@ export default function App() {
         });
       });
       setActivityLogs(logs);
+    }, (err) => {
+      console.error("Error fetching activity logs: ", err);
     });
     return () => unsubscribe();
   }, []);
@@ -297,11 +299,15 @@ export default function App() {
     saveConfig(newStudents, newClasses);
 
     try {
-      const snapshot = await getDocs(collection(db, "enrollments"));
-      const deletePromises = snapshot.docs.map(docSnap => deleteDoc(doc(db, "enrollments", docSnap.id)));
-      await Promise.all(deletePromises);
+      const enrollmentsSnapshot = await getDocs(collection(db, "enrollments"));
+      const deleteEnrollmentsPromises = enrollmentsSnapshot.docs.map(docSnap => deleteDoc(doc(db, "enrollments", docSnap.id)));
+      await Promise.all(deleteEnrollmentsPromises);
+
+      const logsSnapshot = await getDocs(collection(db, "activity_logs"));
+      const deleteLogsPromises = logsSnapshot.docs.map(docSnap => deleteDoc(doc(db, "activity_logs", docSnap.id)));
+      await Promise.all(deleteLogsPromises);
     } catch (e) {
-      console.error("Erro ao resetar inscrições no Firebase", e);
+      console.error("Erro ao resetar inscrições e logs no Firebase", e);
     }
   };
 
@@ -1000,49 +1006,33 @@ export default function App() {
                     <p className="text-slate-500 text-sm uppercase tracking-widest font-bold">Nenhuma atividade recente.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-800">
-                          <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500">Data/Hora</th>
-                          <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500">Aluno</th>
-                          <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500">Ação</th>
-                          <th className="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500">Detalhes</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/50">
-                        {activityLogs.map(log => {
-                          const date = new Date(log.timestamp);
-                          const dateString = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-                          const timeString = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                          
-                          let actionColor = 'text-slate-300';
-                          if (log.action === 'enrolled') actionColor = 'text-emerald-400';
-                          else if (log.action === 'unenrolled') actionColor = 'text-rose-400';
-                          else if (log.action === 'justified') actionColor = 'text-amber-400';
-                          else if (log.action === 'changed') actionColor = 'text-sky-400';
+                  <div className="bg-slate-950/50 rounded-2xl border border-slate-800/80 p-4 md:p-6 space-y-3">
+                    {activityLogs.map(log => {
+                      const date = new Date(log.timestamp);
+                      const dateString = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                      const timeString = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                      
+                      let actionText = '';
+                      if (log.action === 'enrolled') {
+                        actionText = `se inscreveu no ${log.details.replace('Inscreveu-se em: ', '')}`;
+                      } else if (log.action === 'unenrolled') {
+                        actionText = 'retirou o nome de todas as turmas';
+                      } else if (log.action === 'changed') {
+                        if (log.details.includes('Alterou')) {
+                          actionText = `alterou a inscrição para ${log.details.replace('Alterou inscrição para: ', '')}`;
+                        } else {
+                          actionText = 'salvou a inscrição';
+                        }
+                      } else if (log.action === 'justified') {
+                        actionText = `justificou ausência: "${log.details.replace('Justificou ausência: ', '')}"`;
+                      }
 
-                          return (
-                            <tr key={log.id} className="hover:bg-slate-800/30 transition-colors">
-                              <td className="py-3 px-4 text-xs font-mono text-slate-400 whitespace-nowrap">
-                                {dateString} <span className="text-slate-600">|</span> {timeString}
-                              </td>
-                              <td className="py-3 px-4 text-sm font-bold text-white uppercase tracking-tight whitespace-nowrap">
-                                {log.studentName}
-                              </td>
-                              <td className={`py-3 px-4 text-[10px] font-black uppercase tracking-widest ${actionColor} whitespace-nowrap`}>
-                                {log.action === 'enrolled' ? 'Inscrição' : 
-                                 log.action === 'unenrolled' ? 'Cancelamento' : 
-                                 log.action === 'justified' ? 'Justificativa' : 'Alteração'}
-                              </td>
-                              <td className="py-3 px-4 text-xs text-slate-400">
-                                {log.details}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                      return (
+                        <div key={log.id} className="text-sm md:text-base font-medium text-slate-300 border-b border-slate-800/50 pb-3 last:border-0 last:pb-0">
+                          <span className="font-bold text-sky-400">{log.studentName}</span> - {actionText} , as {timeString} de {dateString};
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
