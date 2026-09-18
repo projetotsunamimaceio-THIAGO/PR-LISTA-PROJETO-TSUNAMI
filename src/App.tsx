@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { LogIn, Lock, ArrowLeft, Plus, Trash2, LogOut, RefreshCw, Search, X, Check, ShieldAlert } from "lucide-react";
+import { useState, useEffect, useRef, type ChangeEvent, type FormEvent } from "react";
+import { LogIn, Lock, ArrowLeft, Plus, Trash2, LogOut, RefreshCw, Search, X, Check, ShieldAlert, Save } from "lucide-react";
 import { doc, setDoc, getDocs, deleteDoc, onSnapshot, collection, serverTimestamp, addDoc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "./lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -48,6 +48,9 @@ export default function App() {
   // Admin state
   const [activeDay, setActiveDay] = useState<ClassDay>('SEXTA');
   const [notice, setNotice] = useState('Turmas abertas. Faça sua\ninscrição!!');
+  const [isSavingNotice, setIsSavingNotice] = useState(false);
+  const [noticeSavedSuccess, setNoticeSavedSuccess] = useState(false);
+  const isEditingNoticeRef = useRef(false);
   
   // Classes
   const [classes, setClasses] = useState<ClassItem[]>([
@@ -137,6 +140,9 @@ export default function App() {
         if (data.enrollmentsLocked !== undefined) setEnrollmentsLocked(data.enrollmentsLocked);
         if (data.absenceJustificationOpen !== undefined) setAbsenceJustificationOpen(data.absenceJustificationOpen);
         if (data.logoUrl !== undefined) setLogoUrl(data.logoUrl);
+        if (data.notice !== undefined && !isEditingNoticeRef.current) {
+          setNotice(data.notice);
+        }
       }
     });
     return () => unsubscribe();
@@ -215,7 +221,24 @@ export default function App() {
     }
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSaveNotice = async (textToSave?: string) => {
+    const value = textToSave !== undefined ? textToSave : notice;
+    setIsSavingNotice(true);
+    try {
+      await setDoc(doc(db, "config", "settings"), {
+        notice: value,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      setNoticeSavedSuccess(true);
+      setTimeout(() => setNoticeSavedSuccess(false), 3000);
+    } catch (e) {
+      console.error("Erro ao salvar aviso no Firebase", e);
+    } finally {
+      setIsSavingNotice(false);
+    }
+  };
+
+  const handleLogoUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -237,7 +260,7 @@ export default function App() {
 
   const totalStudents = students.length;
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = (e: FormEvent) => {
     e.preventDefault();
     if (password === 'admin123') {
       setView('adminPanel');
@@ -797,14 +820,62 @@ export default function App() {
                   </div>
                   
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">
-                      Quadro de Avisos
-                    </h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                        Quadro de Avisos
+                      </h3>
+                      {noticeSavedSuccess && (
+                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5" /> Salvo!
+                        </span>
+                      )}
+                    </div>
                     <textarea 
+                      id="admin-notice-input"
                       value={notice}
-                      onChange={(e) => setNotice(e.target.value)}
+                      onFocus={() => { isEditingNoticeRef.current = true; }}
+                      onChange={(e) => {
+                        setNotice(e.target.value);
+                        setNoticeSavedSuccess(false);
+                      }}
+                      onBlur={() => {
+                        isEditingNoticeRef.current = false;
+                        handleSaveNotice(notice);
+                      }}
+                      placeholder="Digite o aviso para os alunos..."
                       className="w-full bg-slate-950/50 border border-slate-700/50 rounded-2xl p-4 text-sm text-sky-100 resize-none h-28 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all leading-relaxed"
                     />
+                    <button
+                      id="save-notice-btn"
+                      type="button"
+                      onClick={() => handleSaveNotice(notice)}
+                      disabled={isSavingNotice}
+                      className={`mt-2 w-full font-bold text-xs uppercase tracking-widest py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all ${
+                        noticeSavedSuccess
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          : 'bg-sky-600 hover:bg-sky-500 text-white shadow-[0_4px_14px_0_rgba(2,132,199,0.39)] active:scale-[0.99]'
+                      }`}
+                    >
+                      {isSavingNotice ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          Salvando aviso...
+                        </>
+                      ) : noticeSavedSuccess ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          Aviso Salvo com Sucesso!
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-3.5 h-3.5" />
+                          Salvar Quadro de Avisos
+                        </>
+                      )}
+                    </button>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1.5 text-center">
+                      Salva automaticamente ao sair do campo ou clicando no botão
+                    </p>
                   </div>
                 </div>
 
