@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type ChangeEvent, type FormEvent } from "react";
-import { LogIn, Lock, ArrowLeft, Plus, Trash2, LogOut, RefreshCw, Search, X, Check, ShieldAlert, Save } from "lucide-react";
+import { LogIn, Lock, ArrowLeft, Plus, Trash2, LogOut, RefreshCw, Search, X, Check, ShieldAlert, Save, Users } from "lucide-react";
 import { doc, setDoc, getDocs, deleteDoc, onSnapshot, collection, serverTimestamp, addDoc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "./lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -27,6 +27,7 @@ interface Student {
 interface EnrollmentRecord {
   studentId: string;
   classes: string[];
+  guests?: Record<string, string[]>;
   updatedAt: number;
   justifiedAbsence?: boolean;
   absenceReason?: string;
@@ -95,6 +96,9 @@ export default function App() {
   const [studentPasswordInput, setStudentPasswordInput] = useState('');
   const [studentSearchInput, setStudentSearchInput] = useState('');
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  const [selectedGuests, setSelectedGuests] = useState<Record<string, string[]>>({});
+  const [enrollmentSubTab, setEnrollmentSubTab] = useState<'classes' | 'guests'>('classes');
+  const [guestClassId, setGuestClassId] = useState<string>('');
   const [studentFlowError, setStudentFlowError] = useState('');
 
   // Justification Flow State
@@ -156,6 +160,7 @@ export default function App() {
         newEnrollments.push({
           studentId: doc.id,
           classes: data.classes || [],
+          guests: data.guests || {},
           updatedAt: data.updatedAt?.toMillis?.() || Date.now(),
           justifiedAbsence: data.justifiedAbsence || false,
           absenceReason: data.absenceReason || '',
@@ -430,6 +435,9 @@ export default function App() {
     setStudentPasswordInput('');
     setStudentSearchInput('');
     setSelectedClasses([]);
+    setSelectedGuests({});
+    setEnrollmentSubTab('classes');
+    setGuestClassId('');
     setStudentFlowError('');
     setView('studentFlow');
   };
@@ -472,11 +480,34 @@ export default function App() {
         setJustificationStep(3);
       } else {
         setSelectedClasses(existingEnrollment ? existingEnrollment.classes : []);
+        const loadedGuests: Record<string, string[]> = {};
+        if (existingEnrollment?.guests) {
+          for (const [cId, gList] of Object.entries(existingEnrollment.guests)) {
+            if (Array.isArray(gList)) {
+              loadedGuests[cId] = [...gList];
+            }
+          }
+        }
+        setSelectedGuests(loadedGuests);
+        setEnrollmentSubTab('classes');
+        const availableList = classes.filter(c => c.isOpen && (!student?.allowedClasses || student.allowedClasses.includes(c.id)));
+        if (availableList.length > 0) {
+          setGuestClassId(existingEnrollment?.classes?.[0] || availableList[0].id);
+        }
         setStudentStep(3);
       }
     } else {
       setStudentFlowError('Senha incorreta.');
     }
+  };
+
+  const handleGuestChange = (classId: string, index: number, value: string) => {
+    setSelectedGuests(prev => {
+      const current = prev[classId] ? [...prev[classId]] : ['', ''];
+      while (current.length < 2) current.push('');
+      current[index] = value;
+      return { ...prev, [classId]: current };
+    });
   };
 
   const toggleStudentClass = (classId: string) => {
@@ -497,24 +528,53 @@ export default function App() {
       let action: 'enrolled' | 'unenrolled' | 'changed' = 'changed';
       let details = '';
 
-      if (selectedClasses.length === 0 && existingClasses.length > 0) {
+      // Clean guests: only keep valid non-empty guests for each class (max 2 per class)
+      const cleanedGuests: Record<string, string[]> = {};
+      let totalGuestsCount = 0;
+      const guestDetailsSummary: string[] = [];
+
+      for (const [classId, rawList] of Object.entries(selectedGuests)) {
+        const list = ((rawList as string[]) || [])
+          .map(g => (g || '').trim())
+          .filter(g => g.length > 0)
+          .slice(0, 2);
+        
+        if (list.length > 0) {
+          cleanedGuests[classId] = list;
+          totalGuestsCount += list.length;
+          const cName = classes.find(c => c.id === classId)?.name || 'Turma';
+          guestDetailsSummary.push(`${cName}: ${list.join(', ')}`);
+        }
+      }
+
+      const hadPrevious = existingClasses.length > 0 || (existingEnrollment?.guests && Object.keys(existingEnrollment.guests).length > 0);
+      const hasCurrent = selectedClasses.length > 0 || totalGuestsCount > 0;
+
+      if (!hasCurrent && hadPrevious) {
         action = 'unenrolled';
-        details = 'Cancelou a inscrição em todas as turmas.';
-      } else if (existingClasses.length === 0 && selectedClasses.length > 0) {
+        details = 'Cancelou a inscrição e convidados em todas as turmas.';
+      } else if (!hadPrevious && hasCurrent) {
         action = 'enrolled';
         const classNames = selectedClasses.map(cid => classes.find(c => c.id === cid)?.name).filter(Boolean).join(', ');
-        details = `Inscreveu-se em: ${classNames}`;
-      } else if (selectedClasses.length > 0) {
+        details = classNames ? `Inscreveu-se em: ${classNames}` : `Cadastrou convidados`;
+        if (totalGuestsCount > 0) {
+          details += ` (+ ${totalGuestsCount} ${totalGuestsCount === 1 ? 'convidado' : 'convidados'}: ${guestDetailsSummary.join('; ')})`;
+        }
+      } else if (hasCurrent) {
+        action = 'changed';
         const classNames = selectedClasses.map(cid => classes.find(c => c.id === cid)?.name).filter(Boolean).join(', ');
-        details = `Alterou inscrição para: ${classNames}`;
+        details = classNames ? `Alterou inscrição para: ${classNames}` : `Alterou convidados`;
+        if (totalGuestsCount > 0) {
+          details += ` (+ ${totalGuestsCount} ${totalGuestsCount === 1 ? 'convidado' : 'convidados'}: ${guestDetailsSummary.join('; ')})`;
+        }
       } else {
-        // Did nothing
         action = 'changed';
         details = 'Salvou a inscrição vazia.';
       }
 
       await setDoc(doc(db, "enrollments", selectedStudentId), {
         classes: selectedClasses,
+        guests: cleanedGuests,
         justifiedAbsence: false,
         absenceReason: null,
         updatedAt: serverTimestamp()
@@ -741,9 +801,24 @@ export default function App() {
                       </div>
 
                       <div className="flex justify-between items-center border-t border-slate-800/80 pt-5 mt-2">
-                        <span className="text-sky-400 text-sm font-black tracking-widest">
-                          TOTAL: {cls.multiplier * 5} VAGAS
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sky-400 text-sm font-black tracking-widest">
+                            TOTAL: {cls.multiplier * 5} VAGAS
+                          </span>
+                          {(() => {
+                            let count = 0;
+                            enrollments.filter(e => e.classes.includes(cls.id) && !e.justifiedAbsence).forEach(e => {
+                              count += 1;
+                              const gList = (e.guests?.[cls.id] || []).filter(g => g.trim().length > 0).slice(0, 2);
+                              count += gList.length;
+                            });
+                            return (
+                              <span className="text-[11px] font-bold text-slate-300 bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700/50">
+                                {count} inscritos
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <button 
                           onClick={() => removeClass(cls.id)}
                           className="text-rose-500/70 hover:text-rose-400 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-1"
@@ -1211,50 +1286,286 @@ export default function App() {
 
             {studentStep === 3 && (
               <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
-                <div className="text-center mb-8">
-                  <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black tracking-widest uppercase mb-4">Passo Final</span>
-                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-2 text-white">Modalidades</h1>
-                  <p className="text-sky-200/60 text-sm">Selecione as turmas que deseja participar.</p>
+                <div className="text-center mb-6">
+                  <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black tracking-widest uppercase mb-3">Passo Final</span>
+                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-2 text-white">Inscrição & Convidados</h1>
+                  <div className="inline-block px-4 py-1.5 bg-slate-800/60 border border-slate-700/70 rounded-xl">
+                    <p className="text-sky-300 text-xs uppercase font-black tracking-widest">
+                      {students.find(s => s.id === selectedStudentId)?.name}
+                    </p>
+                  </div>
                 </div>
                 
                 <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col">
-                  <div className="flex-1 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 space-y-3 mb-6">
-                    <div className="space-y-3">
-                      {(() => {
-                        const student = students.find(s => s.id === selectedStudentId);
-                        const availableClasses = classes.filter(c => c.isOpen && (!student?.allowedClasses || student.allowedClasses.includes(c.id)));
-                        
-                        if (availableClasses.length === 0) {
-                          return (
-                            <div className="text-center py-10 bg-slate-950/50 rounded-2xl border border-slate-800">
-                              <p className="text-slate-500 text-sm uppercase tracking-widest font-bold">Nenhuma turma disponível para você no momento.</p>
-                            </div>
-                          );
-                        }
+                  {(() => {
+                    const student = students.find(s => s.id === selectedStudentId);
+                    const studentName = student?.name || 'Aluno';
+                    const availableClasses = classes.filter(c => c.isOpen && (!student?.allowedClasses || student.allowedClasses.includes(c.id)));
+                    
+                    let totalGuestsCount = 0;
+                    Object.values(selectedGuests).forEach(list => {
+                      totalGuestsCount += ((list as string[]) || []).filter(g => (g || '').trim().length > 0).slice(0, 2).length;
+                    });
 
-                        return availableClasses.map(c => {
-                          const isSelected = selectedClasses.includes(c.id);
-                          return (
-                            <button 
-                              key={c.id}
-                              onClick={() => toggleStudentClass(c.id)}
-                              className={`w-full text-left rounded-2xl p-5 md:p-6 transition-all border ${isSelected ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'bg-slate-800/40 border-slate-700/50 hover:border-slate-500'}`}
-                            >
-                              <div className="flex justify-between items-center">
-                                <span className={`text-sm md:text-base font-black uppercase tracking-tight ${isSelected ? 'text-emerald-400' : 'text-slate-300'}`}>
-                                  {c.name}
-                                </span>
-                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'}`}>
-                                    {isSelected && <Check className="w-3 h-3 text-slate-950" />}
+                    const activeGuestClass = availableClasses.find(c => c.id === guestClassId) || availableClasses[0];
+
+                    if (availableClasses.length === 0) {
+                      return (
+                        <div className="text-center py-10 bg-slate-950/50 rounded-2xl border border-slate-800">
+                          <p className="text-slate-500 text-sm uppercase tracking-widest font-bold">Nenhuma turma disponível no momento.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <>
+                        {/* Selector Tabs: Turmas vs Inserir Convidado */}
+                        <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-950/80 rounded-2xl border border-slate-800 mb-6">
+                          <button
+                            type="button"
+                            onClick={() => setEnrollmentSubTab('classes')}
+                            className={`py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                              enrollmentSubTab === 'classes'
+                                ? 'bg-emerald-500 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                            }`}
+                          >
+                            <span>Turmas</span>
+                            {selectedClasses.length > 0 && (
+                              <span className="bg-slate-950 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                {selectedClasses.length}
+                              </span>
+                            )}
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEnrollmentSubTab('guests');
+                              if (!guestClassId && availableClasses.length > 0) {
+                                setGuestClassId(selectedClasses[0] || availableClasses[0].id);
+                              }
+                            }}
+                            className={`py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                              enrollmentSubTab === 'guests'
+                                ? 'bg-amber-500 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                            }`}
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            <span>Inserir Convidado</span>
+                            {totalGuestsCount > 0 && (
+                              <span className="bg-slate-950 text-amber-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                {totalGuestsCount}
+                              </span>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* SUBTAB 1: TURMAS */}
+                        {enrollmentSubTab === 'classes' && (
+                          <div className="flex-1 max-h-[380px] overflow-y-auto custom-scrollbar pr-2 space-y-3 mb-6">
+                            <p className="text-xs text-slate-400 mb-3">
+                              Selecione as turmas em que você vai participar:
+                            </p>
+                            {availableClasses.map(c => {
+                              const isSelected = selectedClasses.includes(c.id);
+                              const classGuests = (selectedGuests[c.id] || []).filter(g => g.trim().length > 0).slice(0, 2);
+                              return (
+                                <div 
+                                  key={c.id} 
+                                  className={`rounded-2xl transition-all border p-4 md:p-5 ${
+                                    isSelected 
+                                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)]' 
+                                      : 'bg-slate-800/40 border-slate-700/50 hover:border-slate-500 text-slate-300'
+                                  }`}
+                                >
+                                  <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleStudentClass(c.id)}>
+                                    <div>
+                                      <span className="text-sm md:text-base font-black uppercase tracking-tight">
+                                        {c.name}
+                                      </span>
+                                      <p className={`text-xs mt-1 ${isSelected ? 'text-emerald-500/70' : 'text-slate-500'}`}>
+                                        {c.description}
+                                      </p>
+                                    </div>
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${
+                                      isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'
+                                    }`}>
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-slate-950" />}
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-3 pt-3 border-t border-slate-700/40 flex items-center justify-between">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setGuestClassId(c.id);
+                                        setEnrollmentSubTab('guests');
+                                      }}
+                                      className="text-[11px] font-bold text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1.5 uppercase tracking-wide"
+                                    >
+                                      <Users className="w-3.5 h-3.5" />
+                                      {classGuests.length > 0 ? `+ Gerenciar convidados (${classGuests.length})` : '+ Inserir Convidado nesta turma'}
+                                    </button>
+                                    {isSelected && (
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                                        Você inscrito
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* SUBTAB 2: INSERIR CONVIDADO */}
+                        {enrollmentSubTab === 'guests' && (
+                          <div className="flex-1 max-h-[380px] overflow-y-auto custom-scrollbar pr-2 space-y-4 mb-6">
+                            <div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">
+                                1. Selecione a turma do convidado:
+                              </span>
+                              <div className="flex flex-wrap gap-2">
+                                {availableClasses.map(c => {
+                                  const isCurrent = (activeGuestClass?.id === c.id);
+                                  const cGuests = (selectedGuests[c.id] || []).filter(g => g.trim().length > 0).slice(0, 2);
+                                  return (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      onClick={() => setGuestClassId(c.id)}
+                                      className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border ${
+                                        isCurrent
+                                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                                          : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:border-slate-500'
+                                      }`}
+                                    >
+                                      <span>{c.name}</span>
+                                      {cGuests.length > 0 && (
+                                        <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+                                          isCurrent ? 'bg-slate-950 text-amber-300' : 'bg-amber-500/20 text-amber-300'
+                                        }`}>
+                                          {cGuests.length}
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {activeGuestClass && (
+                              <div className="bg-slate-950/70 border border-amber-500/40 rounded-2xl p-4 md:p-5 shadow-lg space-y-4">
+                                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                                  <div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block">
+                                      Turma onde vai aparecer:
+                                    </span>
+                                    <h4 className="text-base md:text-lg font-black text-white uppercase tracking-tight">
+                                      {activeGuestClass.name}
+                                    </h4>
+                                  </div>
+                                  <span className="text-[10px] font-black text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg uppercase tracking-wider shrink-0">
+                                    Máx. 2 convidados
+                                  </span>
+                                </div>
+
+                                <p className="text-[11px] text-slate-400 leading-relaxed">
+                                  Insira os convidados para <strong className="text-white">{activeGuestClass.name}</strong>. Na lista oficial, eles aparecerão com outra cor identificados como <strong className="text-amber-300 font-bold">(CONVIDADO DE {studentName})</strong>.
+                                </p>
+
+                                <div className="space-y-3">
+                                  {/* Convidado 1 */}
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-300">
+                                      1º Convidado:
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                      <input 
+                                        type="text"
+                                        placeholder="Nome do 1º convidado (opcional)"
+                                        value={selectedGuests[activeGuestClass.id]?.[0] || ''}
+                                        onChange={(e) => handleGuestChange(activeGuestClass.id, 0, e.target.value)}
+                                        maxLength={50}
+                                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+                                      />
+                                      {selectedGuests[activeGuestClass.id]?.[0] && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleGuestChange(activeGuestClass.id, 0, '')}
+                                          className="text-slate-500 hover:text-rose-400 p-2 rounded-lg transition-colors shrink-0"
+                                          title="Limpar nome"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                    {selectedGuests[activeGuestClass.id]?.[0]?.trim() && (
+                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mt-1">
+                                        Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][0].trim()} (CONVIDADO DE {studentName})</strong>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Convidado 2 */}
+                                  <div className="space-y-1 pt-2 border-t border-slate-900">
+                                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-300">
+                                      2º Convidado:
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                      <input 
+                                        type="text"
+                                        placeholder="Nome do 2º convidado (opcional)"
+                                        value={selectedGuests[activeGuestClass.id]?.[1] || ''}
+                                        onChange={(e) => handleGuestChange(activeGuestClass.id, 1, e.target.value)}
+                                        maxLength={50}
+                                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+                                      />
+                                      {selectedGuests[activeGuestClass.id]?.[1] && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleGuestChange(activeGuestClass.id, 1, '')}
+                                          className="text-slate-500 hover:text-rose-400 p-2 rounded-lg transition-colors shrink-0"
+                                          title="Limpar nome"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                    {selectedGuests[activeGuestClass.id]?.[1]?.trim() && (
+                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mt-1">
+                                        Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][1].trim()} (CONVIDADO DE {studentName})</strong>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                              <p className={`text-xs mt-2 ${isSelected ? 'text-emerald-500/70' : 'text-slate-500'}`}>{c.description}</p>
-                            </button>
-                          )
-                        });
-                      })()}
-                    </div>
-                  </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Summary of selections */}
+                        <div className="bg-slate-950/40 rounded-xl p-3 mb-4 border border-slate-800 text-[11px] text-slate-400 flex flex-col gap-1">
+                          <div className="flex justify-between items-center">
+                            <span>Suas turmas selecionadas:</span>
+                            <strong className="text-emerald-400 uppercase">
+                              {selectedClasses.length > 0 
+                                ? selectedClasses.map(cid => classes.find(c => c.id === cid)?.name).filter(Boolean).join(', ')
+                                : 'Nenhuma'}
+                            </strong>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>Convidados adicionados:</span>
+                            <strong className="text-amber-400">
+                              {totalGuestsCount > 0 ? `${totalGuestsCount} convidado(s)` : 'Nenhum'}
+                            </strong>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
 
                   {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mb-4 bg-rose-500/10 py-2 rounded-lg">{studentFlowError}</p>}
 
@@ -1510,14 +1821,54 @@ export default function App() {
                         
                         <div className="space-y-2">
                           {(() => {
-                            const enrolledIds = enrollments
-                              .filter(e => e.classes.includes(cls.id) && !e.justifiedAbsence)
-                              .sort((a, b) => a.updatedAt - b.updatedAt)
-                              .map(e => e.studentId);
+                            const classEnrollments = enrollments
+                              .filter(e => (e.classes.includes(cls.id) || (e.guests?.[cls.id] && e.guests[cls.id].length > 0)) && !e.justifiedAbsence)
+                              .sort((a, b) => a.updatedAt - b.updatedAt);
+
+                            interface Participant {
+                              key: string;
+                              name: string;
+                              isGuest: boolean;
+                              guestOf?: string;
+                              studentId: string;
+                            }
+
+                            const participants: Participant[] = [];
+                            for (const enr of classEnrollments) {
+                              const st = students.find(s => s.id === enr.studentId);
+                              const studentName = st?.name || 'Aluno Desconhecido';
+                              
+                              // Add the enrolled student if enrolled
+                              if (enr.classes.includes(cls.id)) {
+                                participants.push({
+                                  key: `${enr.studentId}-main`,
+                                  name: studentName,
+                                  isGuest: false,
+                                  studentId: enr.studentId,
+                                });
+                              }
+
+                              // Add up to 2 guests for this class
+                              const guestList = (enr.guests?.[cls.id] || [])
+                                .map(g => g.trim())
+                                .filter(g => g.length > 0)
+                                .slice(0, 2);
+
+                              for (let gIdx = 0; gIdx < guestList.length; gIdx++) {
+                                participants.push({
+                                  key: `${enr.studentId}-guest-${gIdx}`,
+                                  name: guestList[gIdx],
+                                  isGuest: true,
+                                  guestOf: studentName,
+                                  studentId: enr.studentId,
+                                });
+                              }
+                            }
+
                             const maxVagas = cls.multiplier * 5;
-                            const isFull = enrolledIds.length >= maxVagas;
+                            const isFull = participants.length >= maxVagas;
                             
-                            if (enrolledIds.length === 0) {
+                            if (participants.length === 0) {
                               return (
                                 <div className="bg-slate-950/40 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between border border-dashed border-slate-700/50 gap-3">
                                   <span className="text-slate-500 text-xs font-bold uppercase tracking-widest">
@@ -1532,18 +1883,45 @@ export default function App() {
 
                             return (
                               <>
-                                {enrolledIds.map((studentId, idx) => {
-                                  const st = students.find(s => s.id === studentId);
+                                {participants.map((p, idx) => {
                                   const isWaitlist = idx >= maxVagas;
                                   return (
-                                    <div key={studentId} className={`rounded-2xl p-4 flex items-center justify-between border transition-colors ${isWaitlist ? 'bg-rose-950/10 border-rose-900/30' : 'bg-slate-800/40 border-slate-700/50'}`}>
+                                    <div 
+                                      key={p.key} 
+                                      className={`rounded-2xl p-4 flex items-center justify-between border transition-all ${
+                                        isWaitlist 
+                                          ? 'bg-rose-950/10 border-rose-900/30' 
+                                          : p.isGuest 
+                                            ? 'bg-amber-950/25 border-amber-500/40 shadow-sm shadow-amber-500/5' 
+                                            : 'bg-slate-800/40 border-slate-700/50'
+                                      }`}
+                                    >
                                       <div className="flex items-center gap-3 md:gap-4 w-full">
-                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${isWaitlist ? 'bg-rose-900/30 text-rose-400' : 'bg-slate-950 text-slate-400'}`}>
+                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                                          isWaitlist 
+                                            ? 'bg-rose-900/30 text-rose-400' 
+                                            : p.isGuest 
+                                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
+                                              : 'bg-slate-950 text-slate-400'
+                                        }`}>
                                           {idx + 1}
                                         </div>
-                                        <span className={`text-xs md:text-sm font-bold uppercase truncate max-w-[200px] md:max-w-[300px] ${isWaitlist ? 'text-rose-200/70' : 'text-emerald-400'}`}>
-                                          {st?.name || 'Aluno Desconhecido'}
-                                        </span>
+                                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2 flex-1 min-w-0">
+                                          <span className={`text-xs md:text-sm font-black uppercase truncate ${
+                                            isWaitlist 
+                                              ? 'text-rose-200/70' 
+                                              : p.isGuest 
+                                                ? 'text-amber-300' 
+                                                : 'text-emerald-400'
+                                          }`}>
+                                            {p.name}
+                                          </span>
+                                          {p.isGuest && (
+                                            <span className="text-[10px] md:text-xs font-black text-amber-400 uppercase tracking-wide shrink-0">
+                                              (CONVIDADO DE {p.guestOf})
+                                            </span>
+                                          )}
+                                        </div>
                                         {isWaitlist && (
                                           <span className="ml-auto text-[9px] font-black tracking-widest uppercase text-rose-400 border border-rose-400/30 px-2 py-1 rounded-md shrink-0">
                                             Espera
@@ -1558,7 +1936,7 @@ export default function App() {
                                     {isFull ? 'TURMA LOTADA' : 'VAGAS DISPONÍVEIS'}
                                   </span>
                                   <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest bg-slate-900 px-3 py-1 rounded-lg">
-                                    {Math.min(enrolledIds.length, maxVagas)} / {maxVagas}
+                                    {Math.min(participants.length, maxVagas)} / {maxVagas}
                                   </span>
                                 </div>
                               </>
