@@ -67,6 +67,18 @@ export default function App() {
   const [error, setError] = useState('');
 
   // Admin state
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('tsunami_admin_auth') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [adminQuickLoginOpen, setAdminQuickLoginOpen] = useState(false);
+  const [quickAdminPassword, setQuickAdminPassword] = useState('');
+  const [quickAdminError, setQuickAdminError] = useState('');
+  const [updatedFlashKey, setUpdatedFlashKey] = useState<string | null>(null);
+
   const [activeDay, setActiveDay] = useState<ClassDay>('SEXTA');
   const [notice, setNotice] = useState('Turmas abertas. Faça sua\ninscrição!!');
   const [isSavingNotice, setIsSavingNotice] = useState(false);
@@ -316,6 +328,7 @@ export default function App() {
           name: guestList[gIdx],
           isGuest: true,
           guestOf: studentName,
+          guestIndex: gIdx,
           studentId: enr.studentId,
           level: gLvl,
           enrolledIndex: count++,
@@ -324,6 +337,133 @@ export default function App() {
     }
 
     return participants;
+  };
+
+  const handleAdminUpdateParticipantLevel = async (
+    classId: string,
+    participant: Participant,
+    newLevel: number
+  ) => {
+    const clampedLevel = Math.max(1, Math.min(5, Math.round(newLevel)));
+    const className = classes.find(c => c.id === classId)?.name || 'Turma';
+
+    // Immediate visual feedback flash
+    setUpdatedFlashKey(participant.key);
+    setTimeout(() => {
+      setUpdatedFlashKey(prev => prev === participant.key ? null : prev);
+    }, 1500);
+
+    try {
+      const enrollment = enrollments.find(e => e.studentId === participant.studentId);
+      if (!enrollment) return;
+
+      if (participant.isGuest) {
+        const gIdx = participant.guestIndex ?? 0;
+        const currentGuestLevels = { ...(enrollment.guestLevels || {}) };
+        const classGLevels = [...(currentGuestLevels[classId] || [3, 3])];
+        while (classGLevels.length <= gIdx) classGLevels.push(3);
+        classGLevels[gIdx] = clampedLevel;
+        currentGuestLevels[classId] = classGLevels;
+
+        // Instant local update
+        setEnrollments(prev => prev.map(e => e.studentId === participant.studentId ? {
+          ...e,
+          guestLevels: currentGuestLevels
+        } : e));
+
+        await setDoc(doc(db, "enrollments", participant.studentId), {
+          guestLevels: currentGuestLevels,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        await addDoc(collection(db, "activity_logs"), {
+          studentName: 'Professor (Admin)',
+          action: 'changed',
+          details: `Definiu nível do convidado "${participant.name}" para ${clampedLevel}★ (${'⭐'.repeat(clampedLevel)}) na turma ${className}`,
+          timestamp: serverTimestamp()
+        });
+      } else {
+        const currentClassLevels = { ...(enrollment.classLevels || {}) };
+        currentClassLevels[classId] = clampedLevel;
+
+        // Instant local update
+        setEnrollments(prev => prev.map(e => e.studentId === participant.studentId ? {
+          ...e,
+          classLevels: currentClassLevels,
+          skillLevel: clampedLevel
+        } : e));
+
+        const updatedStudents = students.map(s => s.id === participant.studentId ? {
+          ...s,
+          classLevels: { ...(s.classLevels || {}), [classId]: clampedLevel },
+          skillLevel: clampedLevel
+        } : s);
+        setStudents(updatedStudents);
+
+        await setDoc(doc(db, "enrollments", participant.studentId), {
+          classLevels: currentClassLevels,
+          skillLevel: clampedLevel,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        await setDoc(doc(db, "config", "settings"), {
+          students: updatedStudents,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        await addDoc(collection(db, "activity_logs"), {
+          studentName: 'Professor (Admin)',
+          action: 'changed',
+          details: `Definiu nível de "${participant.name}" para ${clampedLevel}★ (${'⭐'.repeat(clampedLevel)}) na turma ${className}`,
+          timestamp: serverTimestamp()
+        });
+      }
+
+      // Synchronize active team draw if one already exists
+      if (savedDraws[classId]) {
+        const draw = savedDraws[classId];
+        let changed = false;
+        const updatedTeams = draw.teams.map(team => {
+          const pIdx = team.players.findIndex(p => p.key === participant.key);
+          if (pIdx !== -1) {
+            changed = true;
+            const updatedPlayers = [...team.players];
+            updatedPlayers[pIdx] = { ...updatedPlayers[pIdx], level: clampedLevel };
+            const totalStars = updatedPlayers.reduce((acc, p) => acc + (p.level || 3), 0);
+            return {
+              ...team,
+              players: updatedPlayers,
+              totalStars,
+              averageStars: Number((totalStars / updatedPlayers.length).toFixed(1))
+            };
+          }
+          return team;
+        });
+
+        const updatedWaitlist = draw.waitlist.map(p => {
+          if (p.key === participant.key) {
+            changed = true;
+            return { ...p, level: clampedLevel };
+          }
+          return p;
+        });
+
+        if (changed) {
+          const updatedDraw: DrawResult = {
+            ...draw,
+            teams: updatedTeams,
+            waitlist: updatedWaitlist
+          };
+          setSavedDraws(prev => ({ ...prev, [classId]: updatedDraw }));
+          await setDoc(doc(db, "config", "settings"), {
+            teamDraws: { ...savedDraws, [classId]: updatedDraw },
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao atualizar estrelas pelo professor", err);
+    }
   };
 
   const handleSaveNotice = async (textToSave?: string) => {
@@ -368,12 +508,39 @@ export default function App() {
   const handleLogin = (e: FormEvent) => {
     e.preventDefault();
     if (password === 'admin123') {
+      setIsAdmin(true);
+      try {
+        sessionStorage.setItem('tsunami_admin_auth', 'true');
+      } catch {}
       setView('adminPanel');
       setPassword('');
       setError('');
     } else {
       setError('Senha incorreta.');
     }
+  };
+
+  const handleQuickAdminLogin = (e: FormEvent) => {
+    e.preventDefault();
+    if (quickAdminPassword === 'admin123') {
+      setIsAdmin(true);
+      try {
+        sessionStorage.setItem('tsunami_admin_auth', 'true');
+      } catch {}
+      setAdminQuickLoginOpen(false);
+      setQuickAdminPassword('');
+      setQuickAdminError('');
+    } else {
+      setQuickAdminError('Senha incorreta.');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdmin(false);
+    try {
+      sessionStorage.removeItem('tsunami_admin_auth');
+    } catch {}
+    setView('home');
   };
 
   const addClass = () => {
@@ -925,11 +1092,24 @@ export default function App() {
 
               {/* Header (Right) */}
               <div className="lg:col-span-4 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 md:p-8 flex flex-col justify-between shadow-xl shadow-black/20">
-                <div className="flex justify-between items-start">
-                  <button onClick={() => setView('home')} className="w-12 h-12 bg-slate-800/50 rounded-2xl flex items-center justify-center hover:bg-rose-950/50 hover:text-rose-400 text-slate-400 transition-colors border border-slate-700/50 hover:border-rose-900/50">
-                    <LogOut className="w-5 h-5" />
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <button 
+                    onClick={() => setView('home')} 
+                    className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 hover:border-amber-500/50 font-black text-xs uppercase tracking-wider px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm"
+                    title="Ver Página Inicial com o Modo Professor Ativo para alterar níveis dos alunos"
+                  >
+                    <span>Página Inicial (Modo Professor)</span>
                   </button>
-                  <span className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-3">Sair</span>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={handleAdminLogout} 
+                      className="w-10 h-10 bg-slate-800/50 rounded-xl flex items-center justify-center hover:bg-rose-950/50 hover:text-rose-400 text-slate-400 transition-colors border border-slate-700/50 hover:border-rose-900/50"
+                      title="Sair do Modo Administrador"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                    <span className="text-slate-500 text-xs font-bold uppercase tracking-widest">Sair</span>
+                  </div>
                 </div>
                 <div className="mt-8">
                   <div className="text-sky-400 text-5xl md:text-6xl font-black tracking-tighter leading-none mb-2">
@@ -2190,13 +2370,35 @@ export default function App() {
         ========================================================================= */}
         {view === 'home' && (
           <motion.div key="home" {...pageTransition} className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-950/30 via-slate-950 to-slate-950 flex flex-col items-center p-4 md:p-8">
-            <div className="w-full max-w-md md:max-w-xl absolute top-4 md:left-8 md:top-8 z-10 flex justify-center md:justify-start">
-              <button 
-                onClick={() => setView('adminLogin')}
-                className="px-5 py-2.5 border border-slate-700/50 bg-slate-900/50 backdrop-blur text-slate-400 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/30 transition-all text-center flex items-center gap-2"
-              >
-                <Lock className="w-3 h-3" /> Area Restrita
-              </button>
+            <div className="w-full max-w-md md:max-w-xl absolute top-4 md:left-8 md:top-8 z-10 flex flex-wrap items-center gap-2 justify-center md:justify-start">
+              {isAdmin ? (
+                <>
+                  <div className="px-3.5 py-1.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-sm shadow-amber-500/10">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span>Modo Professor (Admin)</span>
+                  </div>
+                  <button 
+                    onClick={() => setView('adminPanel')}
+                    className="px-3.5 py-1.5 border border-sky-500/40 bg-sky-950/60 text-sky-300 hover:bg-sky-500/20 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5"
+                  >
+                    <span>Painel Admin</span>
+                  </button>
+                  <button 
+                    onClick={handleAdminLogout}
+                    className="px-3 py-1.5 border border-slate-700 bg-slate-900/60 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
+                    title="Sair do Modo Professor"
+                  >
+                    Sair
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setAdminQuickLoginOpen(true)}
+                  className="px-5 py-2.5 border border-slate-700/50 bg-slate-900/50 backdrop-blur text-slate-400 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/30 transition-all text-center flex items-center gap-2"
+                >
+                  <Lock className="w-3 h-3" /> Área Restrita
+                </button>
+              )}
             </div>
 
             <div className="w-full max-w-md md:max-w-xl space-y-6 mt-20 md:mt-24 relative z-0 pb-12">
@@ -2263,6 +2465,25 @@ export default function App() {
                     Vagas em Tempo Real
                   </h2>
                 </div>
+
+                {isAdmin && (
+                  <div className="bg-amber-950/30 border border-amber-500/40 rounded-2xl p-3.5 mb-6 flex items-center justify-between gap-3 shadow-md">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">⭐</span>
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider text-amber-300 block">
+                          Modo Professor: Ajuste Rápido de Nível
+                        </span>
+                        <span className="text-[11px] text-slate-300">
+                          Clique nas estrelas de qualquer participante para alterar o nível com 1 clique.
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono text-amber-300 font-black uppercase shrink-0 bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30">
+                      1 Clique
+                    </span>
+                  </div>
+                )}
                 
                 {classes.filter(c => c.isOpen).length === 0 ? (
                   <div className="py-12 flex flex-col items-center justify-center text-center bg-slate-950/50 rounded-2xl border border-slate-800/50">
@@ -2384,18 +2605,59 @@ export default function App() {
                                           </div>
                                         </div>
                                         
-                                        {/* Stars Badge - strictly stars as requested */}
+                                        {/* Stars Badge - with 1-click admin adjustment */}
                                         <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                          <span 
-                                            className={`text-[11px] tracking-tight px-2 py-0.5 rounded-lg border font-mono select-none ${
-                                              p.isGuest
-                                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                                                : 'bg-slate-950/80 border-slate-700/60 text-sky-300'
-                                            }`}
-                                            title={`Nível: ${SKILL_LEVEL_OPTIONS.find(o => o.level === p.level)?.label || 'Regular'}`}
-                                          >
-                                            {getSkillStars(p.level)}
-                                          </span>
+                                          {isAdmin ? (
+                                            <div className="flex items-center gap-1 bg-slate-950/90 border border-amber-500/40 hover:border-amber-400 px-2 py-1 rounded-xl shadow-sm transition-all">
+                                              <span className="text-[9px] font-black text-amber-400 uppercase hidden sm:inline tracking-tighter">
+                                                Nível:
+                                              </span>
+                                              <div className="flex items-center gap-0.5">
+                                                {([1, 2, 3, 4, 5] as const).map(starNum => {
+                                                  const isSelected = starNum <= p.level;
+                                                  return (
+                                                    <button
+                                                      key={starNum}
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleAdminUpdateParticipantLevel(cls.id, p, starNum);
+                                                      }}
+                                                      title={`Definir como ${starNum} estrela${starNum > 1 ? 's' : ''} (${SKILL_LEVEL_OPTIONS[starNum - 1]?.label})`}
+                                                      className={`text-sm sm:text-base leading-none transition-all hover:scale-135 active:scale-90 p-0.5 rounded cursor-pointer ${
+                                                        isSelected 
+                                                          ? 'opacity-100 drop-shadow-[0_0_6px_rgba(250,204,21,0.7)]' 
+                                                          : 'opacity-25 hover:opacity-80 grayscale hover:grayscale-0'
+                                                      }`}
+                                                    >
+                                                      ⭐
+                                                    </button>
+                                                  );
+                                                })}
+                                              </div>
+                                              <span className="text-[10px] font-mono text-amber-300 font-bold ml-1">
+                                                {p.level}★
+                                              </span>
+                                              {updatedFlashKey === p.key && (
+                                                <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 px-1 py-0.5 rounded animate-pulse ml-1">
+                                                  ✓
+                                                </span>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <button 
+                                              type="button"
+                                              onClick={() => setAdminQuickLoginOpen(true)}
+                                              className={`text-[11px] tracking-tight px-2 py-0.5 rounded-lg border font-mono select-none transition-transform hover:scale-105 cursor-pointer ${
+                                                p.isGuest
+                                                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                                                  : 'bg-slate-950/80 border-slate-700/60 text-sky-300'
+                                              }`}
+                                              title={`Nível: ${SKILL_LEVEL_OPTIONS.find(o => o.level === p.level)?.label || 'Regular'} (Clique para gerenciar como Professor)`}
+                                            >
+                                              {getSkillStars(p.level)}
+                                            </button>
+                                          )}
                                           {isWaitlist && (
                                             <span className="text-[9px] font-black tracking-widest uppercase text-rose-400 border border-rose-400/30 px-2 py-1 rounded-md shrink-0">
                                               Espera
@@ -2486,6 +2748,85 @@ export default function App() {
           savedDraw={savedDraws[activeDrawClassId]}
           onSaveDraw={handleSaveDraw}
         />
+      )}
+
+      {adminQuickLoginOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-black text-white uppercase tracking-tight">
+                  Modo Professor
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminQuickLoginOpen(false);
+                  setQuickAdminPassword('');
+                  setQuickAdminError('');
+                }}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Autentique-se como professor para ajustar o nível de estrelas dos inscritos diretamente na página inicial com 1 clique.
+            </p>
+
+            <form onSubmit={handleQuickAdminLogin} className="space-y-3">
+              <input
+                type="password"
+                value={quickAdminPassword}
+                onChange={(e) => setQuickAdminPassword(e.target.value)}
+                placeholder="Digite a senha (admin123)"
+                autoFocus
+                className="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-4 py-3 text-white text-center tracking-widest text-sm focus:outline-none focus:border-amber-400 transition-all placeholder:tracking-normal placeholder:text-slate-600"
+              />
+              {quickAdminError && (
+                <p className="text-rose-400 text-xs font-bold text-center">{quickAdminError}</p>
+              )}
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminQuickLoginOpen(false);
+                    setQuickAdminPassword('');
+                    setQuickAdminError('');
+                  }}
+                  className="w-1/2 py-2.5 rounded-xl border border-slate-700 text-slate-400 font-bold text-xs uppercase hover:bg-slate-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                >
+                  Ativar Modo
+                </button>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminQuickLoginOpen(false);
+                    setView('adminLogin');
+                  }}
+                  className="text-[11px] text-sky-400 hover:underline uppercase tracking-wide font-bold"
+                >
+                  Ir para a tela de Login do Painel Completo →
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

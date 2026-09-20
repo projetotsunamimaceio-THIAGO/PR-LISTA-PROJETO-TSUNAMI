@@ -35,6 +35,7 @@ export interface Participant {
   name: string;
   isGuest: boolean;
   guestOf?: string;
+  guestIndex?: number;
   studentId: string;
   level: number;
   enrolledIndex: number;
