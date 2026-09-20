@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, type ChangeEvent, type FormEvent } from "react";
-import { LogIn, Lock, ArrowLeft, Plus, Trash2, LogOut, RefreshCw, Search, X, Check, ShieldAlert, Save, Users } from "lucide-react";
+import { LogIn, Lock, ArrowLeft, Plus, Trash2, LogOut, RefreshCw, Search, X, Check, ShieldAlert, Save, Users, Shuffle, Scale, ArrowRight } from "lucide-react";
 import { doc, setDoc, getDocs, deleteDoc, onSnapshot, collection, serverTimestamp, addDoc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "./lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
+import { TeamDrawModal } from "./components/TeamDrawModal";
+import type { Participant, DrawResult } from "./types";
 
 type ClassDay = 'TERÇA' | 'SEXTA' | 'SÁBADO';
 
@@ -14,6 +16,19 @@ interface ClassItem {
   isOpen: boolean;
 }
 
+export const SKILL_LEVEL_OPTIONS = [
+  { level: 1, stars: '⭐', label: 'Iniciante' },
+  { level: 2, stars: '⭐⭐', label: 'Amadora' },
+  { level: 3, stars: '⭐⭐⭐', label: 'Regular, Sabe joga' },
+  { level: 4, stars: '⭐⭐⭐⭐', label: 'Bom' },
+  { level: 5, stars: '⭐⭐⭐⭐⭐', label: 'Muito bom' },
+] as const;
+
+export const getSkillStars = (level?: number): string => {
+  const safe = Math.min(5, Math.max(1, Math.round(level || 3)));
+  return '⭐'.repeat(safe);
+};
+
 interface Student {
   id: string;
   name: string;
@@ -22,12 +37,17 @@ interface Student {
   behaviorScore?: number;
   infractions?: string[];
   allowedClasses?: string[];
+  classLevels?: Record<string, number>;
+  skillLevel?: number;
 }
 
 interface EnrollmentRecord {
   studentId: string;
   classes: string[];
+  classLevels?: Record<string, number>;
   guests?: Record<string, string[]>;
+  guestLevels?: Record<string, number[]>;
+  skillLevel?: number;
   updatedAt: number;
   justifiedAbsence?: boolean;
   absenceReason?: string;
@@ -97,6 +117,9 @@ export default function App() {
   const [studentSearchInput, setStudentSearchInput] = useState('');
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [selectedGuests, setSelectedGuests] = useState<Record<string, string[]>>({});
+  const [selectedGuestLevels, setSelectedGuestLevels] = useState<Record<string, number[]>>({});
+  const [selectedStudentLevel, setSelectedStudentLevel] = useState<number>(3);
+  const [selectedStudentLevels, setSelectedStudentLevels] = useState<Record<string, number>>({});
   const [enrollmentSubTab, setEnrollmentSubTab] = useState<'classes' | 'guests'>('classes');
   const [guestClassId, setGuestClassId] = useState<string>('');
   const [studentFlowError, setStudentFlowError] = useState('');
@@ -104,6 +127,10 @@ export default function App() {
   // Justification Flow State
   const [justificationStep, setJustificationStep] = useState<1 | 2 | 3>(1);
   const [absenceReason, setAbsenceReason] = useState('');
+
+  // Team Draws State
+  const [savedDraws, setSavedDraws] = useState<Record<string, DrawResult>>({});
+  const [activeDrawClassId, setActiveDrawClassId] = useState<string | null>(null);
 
   // Behavior Evaluation State
   const [behaviorSearchInput, setBehaviorSearchInput] = useState('');
@@ -147,6 +174,9 @@ export default function App() {
         if (data.notice !== undefined && !isEditingNoticeRef.current) {
           setNotice(data.notice);
         }
+        if (data.teamDraws !== undefined) {
+          setSavedDraws(data.teamDraws);
+        }
       }
     });
     return () => unsubscribe();
@@ -160,7 +190,10 @@ export default function App() {
         newEnrollments.push({
           studentId: doc.id,
           classes: data.classes || [],
+          classLevels: data.classLevels || {},
           guests: data.guests || {},
+          guestLevels: data.guestLevels || {},
+          skillLevel: data.skillLevel || data.studentLevel || 3,
           updatedAt: data.updatedAt?.toMillis?.() || Date.now(),
           justifiedAbsence: data.justifiedAbsence || false,
           absenceReason: data.absenceReason || '',
@@ -224,6 +257,73 @@ export default function App() {
     } catch (e) {
       console.error("Erro ao alternar justificativa", e);
     }
+  };
+
+  const handleSaveDraw = async (draw: DrawResult) => {
+    try {
+      const updatedDraws = { ...savedDraws, [draw.classId]: draw };
+      setSavedDraws(updatedDraws);
+      await setDoc(doc(db, "config", "settings"), {
+        teamDraws: updatedDraws,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Organização',
+        action: 'changed',
+        details: `Sorteou linhas equilibradas para ${draw.className}: ${draw.teams.length} times de ${draw.teamSize} jogadores`,
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.error("Erro ao salvar sorteio", e);
+    }
+  };
+
+  const getClassParticipants = (classId: string): Participant[] => {
+    const classEnrollments = enrollments
+      .filter(e => (e.classes.includes(classId) || (e.guests?.[classId] && e.guests[classId].length > 0)) && !e.justifiedAbsence)
+      .sort((a, b) => a.updatedAt - b.updatedAt);
+
+    const participants: Participant[] = [];
+    let count = 1;
+
+    for (const enr of classEnrollments) {
+      const st = students.find(s => s.id === enr.studentId);
+      const studentName = st?.name || 'Aluno Desconhecido';
+      
+      if (enr.classes.includes(classId)) {
+        const studentLevel = enr.classLevels?.[classId] || enr.skillLevel || st?.classLevels?.[classId] || st?.skillLevel || 3;
+        participants.push({
+          key: `${enr.studentId}-main`,
+          name: studentName,
+          isGuest: false,
+          studentId: enr.studentId,
+          level: studentLevel,
+          enrolledIndex: count++,
+        });
+      }
+
+      const guestList = (enr.guests?.[classId] || [])
+        .map(g => g.trim())
+        .filter(g => g.length > 0)
+        .slice(0, 2);
+      const guestLevels = enr.guestLevels?.[classId] || [3, 3];
+
+      for (let gIdx = 0; gIdx < guestList.length; gIdx++) {
+        const gLvl = guestLevels[gIdx] && guestLevels[gIdx] >= 1 && guestLevels[gIdx] <= 5 ? guestLevels[gIdx] : 3;
+        participants.push({
+          key: `${enr.studentId}-guest-${gIdx}`,
+          name: guestList[gIdx],
+          isGuest: true,
+          guestOf: studentName,
+          studentId: enr.studentId,
+          level: gLvl,
+          enrolledIndex: count++,
+        });
+      }
+    }
+
+    return participants;
   };
 
   const handleSaveNotice = async (textToSave?: string) => {
@@ -436,6 +536,9 @@ export default function App() {
     setStudentSearchInput('');
     setSelectedClasses([]);
     setSelectedGuests({});
+    setSelectedGuestLevels({});
+    setSelectedStudentLevel(3);
+    setSelectedStudentLevels({});
     setEnrollmentSubTab('classes');
     setGuestClassId('');
     setStudentFlowError('');
@@ -481,6 +584,7 @@ export default function App() {
       } else {
         setSelectedClasses(existingEnrollment ? existingEnrollment.classes : []);
         const loadedGuests: Record<string, string[]> = {};
+        const loadedGuestLevels: Record<string, number[]> = {};
         if (existingEnrollment?.guests) {
           for (const [cId, gList] of Object.entries(existingEnrollment.guests)) {
             if (Array.isArray(gList)) {
@@ -488,7 +592,27 @@ export default function App() {
             }
           }
         }
+        if (existingEnrollment?.guestLevels) {
+          for (const [cId, lList] of Object.entries(existingEnrollment.guestLevels)) {
+            if (Array.isArray(lList)) {
+              loadedGuestLevels[cId] = [...lList];
+            }
+          }
+        }
         setSelectedGuests(loadedGuests);
+        setSelectedGuestLevels(loadedGuestLevels);
+        const loadedClassLevels: Record<string, number> = {};
+        if (existingEnrollment?.classLevels) {
+          for (const [cId, lvl] of Object.entries(existingEnrollment.classLevels)) {
+            if (typeof lvl === 'number') loadedClassLevels[cId] = lvl;
+          }
+        } else if (student?.classLevels) {
+          for (const [cId, lvl] of Object.entries(student.classLevels)) {
+            if (typeof lvl === 'number') loadedClassLevels[cId] = lvl;
+          }
+        }
+        setSelectedStudentLevels(loadedClassLevels);
+        setSelectedStudentLevel(existingEnrollment?.skillLevel || student?.skillLevel || 3);
         setEnrollmentSubTab('classes');
         const availableList = classes.filter(c => c.isOpen && (!student?.allowedClasses || student.allowedClasses.includes(c.id)));
         if (availableList.length > 0) {
@@ -501,6 +625,13 @@ export default function App() {
     }
   };
 
+  const handleStudentClassLevelChange = (classId: string, level: number) => {
+    setSelectedStudentLevels(prev => ({
+      ...prev,
+      [classId]: level
+    }));
+  };
+
   const handleGuestChange = (classId: string, index: number, value: string) => {
     setSelectedGuests(prev => {
       const current = prev[classId] ? [...prev[classId]] : ['', ''];
@@ -510,10 +641,28 @@ export default function App() {
     });
   };
 
+  const handleGuestLevelChange = (classId: string, index: number, level: number) => {
+    setSelectedGuestLevels(prev => {
+      const current = prev[classId] ? [...prev[classId]] : [3, 3];
+      while (current.length < 2) current.push(3);
+      current[index] = level;
+      return { ...prev, [classId]: current };
+    });
+  };
+
   const toggleStudentClass = (classId: string) => {
-    setSelectedClasses(prev => 
-      prev.includes(classId) ? prev.filter(id => id !== classId) : [...prev, classId]
-    );
+    setSelectedClasses(prev => {
+      const willInclude = !prev.includes(classId);
+      if (willInclude) {
+        setSelectedStudentLevels(currentLevels => ({
+          ...currentLevels,
+          [classId]: currentLevels[classId] || selectedStudentLevel || 3
+        }));
+        return [...prev, classId];
+      } else {
+        return prev.filter(id => id !== classId);
+      }
+    });
   };
 
   const handleFinishEnrollment = async () => {
@@ -530,22 +679,46 @@ export default function App() {
 
       // Clean guests: only keep valid non-empty guests for each class (max 2 per class)
       const cleanedGuests: Record<string, string[]> = {};
+      const cleanedGuestLevels: Record<string, number[]> = {};
       let totalGuestsCount = 0;
       const guestDetailsSummary: string[] = [];
 
       for (const [classId, rawList] of Object.entries(selectedGuests)) {
-        const list = ((rawList as string[]) || [])
-          .map(g => (g || '').trim())
-          .filter(g => g.length > 0)
-          .slice(0, 2);
+        const rawLevels = selectedGuestLevels[classId] || [3, 3];
+        const list: string[] = [];
+        const levels: number[] = [];
+
+        const rawArray = ((rawList as string[]) || []).slice(0, 2);
+        rawArray.forEach((rawName, i) => {
+          const trimmed = (rawName || '').trim();
+          if (trimmed.length > 0) {
+            list.push(trimmed);
+            const lvl = rawLevels[i] && rawLevels[i] >= 1 && rawLevels[i] <= 5 ? rawLevels[i] : 3;
+            levels.push(lvl);
+          }
+        });
         
         if (list.length > 0) {
           cleanedGuests[classId] = list;
+          cleanedGuestLevels[classId] = levels;
           totalGuestsCount += list.length;
           const cName = classes.find(c => c.id === classId)?.name || 'Turma';
-          guestDetailsSummary.push(`${cName}: ${list.join(', ')}`);
+          guestDetailsSummary.push(`${cName}: ${list.map((g, idx) => `${g} (${getSkillStars(levels[idx])})`).join(', ')}`);
         }
       }
+
+      // Clean student class levels
+      const cleanedClassLevels: Record<string, number> = {};
+      for (const cid of selectedClasses) {
+        const rawLvl = selectedStudentLevels[cid];
+        cleanedClassLevels[cid] = rawLvl && rawLvl >= 1 && rawLvl <= 5 ? rawLvl : (selectedStudentLevel || 3);
+      }
+
+      const classWithLevelsStr = selectedClasses.map(cid => {
+        const cName = classes.find(c => c.id === cid)?.name || 'Turma';
+        const stars = getSkillStars(cleanedClassLevels[cid]);
+        return `${cName} [${stars}]`;
+      }).join(', ');
 
       const hadPrevious = existingClasses.length > 0 || (existingEnrollment?.guests && Object.keys(existingEnrollment.guests).length > 0);
       const hasCurrent = selectedClasses.length > 0 || totalGuestsCount > 0;
@@ -555,15 +728,13 @@ export default function App() {
         details = 'Cancelou a inscrição e convidados em todas as turmas.';
       } else if (!hadPrevious && hasCurrent) {
         action = 'enrolled';
-        const classNames = selectedClasses.map(cid => classes.find(c => c.id === cid)?.name).filter(Boolean).join(', ');
-        details = classNames ? `Inscreveu-se em: ${classNames}` : `Cadastrou convidados`;
+        details = classWithLevelsStr ? `Inscreveu-se em: ${classWithLevelsStr}` : `Cadastrou convidados`;
         if (totalGuestsCount > 0) {
           details += ` (+ ${totalGuestsCount} ${totalGuestsCount === 1 ? 'convidado' : 'convidados'}: ${guestDetailsSummary.join('; ')})`;
         }
       } else if (hasCurrent) {
         action = 'changed';
-        const classNames = selectedClasses.map(cid => classes.find(c => c.id === cid)?.name).filter(Boolean).join(', ');
-        details = classNames ? `Alterou inscrição para: ${classNames}` : `Alterou convidados`;
+        details = classWithLevelsStr ? `Alterou inscrição para: ${classWithLevelsStr}` : `Alterou convidados`;
         if (totalGuestsCount > 0) {
           details += ` (+ ${totalGuestsCount} ${totalGuestsCount === 1 ? 'convidado' : 'convidados'}: ${guestDetailsSummary.join('; ')})`;
         }
@@ -572,13 +743,29 @@ export default function App() {
         details = 'Salvou a inscrição vazia.';
       }
 
+      const fallbackLevel = selectedClasses.length > 0 ? (cleanedClassLevels[selectedClasses[0]] || selectedStudentLevel) : selectedStudentLevel;
+
       await setDoc(doc(db, "enrollments", selectedStudentId), {
         classes: selectedClasses,
+        classLevels: cleanedClassLevels,
         guests: cleanedGuests,
+        guestLevels: cleanedGuestLevels,
+        skillLevel: fallbackLevel,
         justifiedAbsence: false,
         absenceReason: null,
         updatedAt: serverTimestamp()
       });
+
+      // Update local student skill level and per-sport levels
+      const updatedStudents = students.map(s => 
+        s.id === selectedStudentId ? { 
+          ...s, 
+          classLevels: { ...(s.classLevels || {}), ...cleanedClassLevels },
+          skillLevel: fallbackLevel 
+        } : s
+      );
+      setStudents(updatedStudents);
+      saveConfig(updatedStudents, classes);
 
       // Add to activity logs
       await addDoc(collection(db, "activity_logs"), {
@@ -719,6 +906,15 @@ export default function App() {
                     {enrollmentsLocked ? 'Desbloquear Inscrições' : 'Trancar Inscrições'}
                   </button>
                   <button 
+                    onClick={() => {
+                      const firstCls = classes.find(c => c.isOpen) || classes[0];
+                      if (firstCls) setActiveDrawClassId(firstCls.id);
+                    }}
+                    className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs md:text-sm uppercase tracking-widest py-3 px-6 rounded-2xl flex items-center gap-2 transition-all shadow-[0_4px_14px_0_rgba(14,165,233,0.39)] hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    <Shuffle className="w-4 h-4" /> Sorteador de Linhas
+                  </button>
+                  <button 
                     onClick={handleReset}
                     className="bg-rose-950/30 border border-rose-900/50 hover:bg-rose-900/50 hover:border-rose-700 text-rose-400 font-bold text-xs md:text-sm uppercase tracking-widest py-3 px-6 rounded-2xl flex items-center gap-2 transition-all"
                   >
@@ -819,12 +1015,22 @@ export default function App() {
                             );
                           })()}
                         </div>
-                        <button 
-                          onClick={() => removeClass(cls.id)}
-                          className="text-rose-500/70 hover:text-rose-400 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-1"
-                        >
-                          <Trash2 className="w-3 h-3" /> Excluir
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button 
+                            type="button"
+                            onClick={() => setActiveDrawClassId(cls.id)}
+                            className="bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 hover:border-sky-500/50 font-black text-xs uppercase tracking-wider px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all"
+                          >
+                            <Shuffle className="w-3.5 h-3.5 text-sky-400" />
+                            {savedDraws[cls.id] ? `Linhas (${savedDraws[cls.id].teams.length} times)` : 'Sortear'}
+                          </button>
+                          <button 
+                            onClick={() => removeClass(cls.id)}
+                            className="text-rose-500/70 hover:text-rose-400 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3 h-3" /> Excluir
+                          </button>
+                        </div>
                       </div>
                     </motion.div>
                   ))}
@@ -1035,9 +1241,29 @@ export default function App() {
                         <div key={student.id} className={`border rounded-2xl p-4 flex flex-col gap-3 transition-colors ${student.isAllowed ? 'bg-slate-800/40 border-slate-700/50' : 'bg-rose-950/10 border-rose-900/30'}`}>
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
-                              <h4 className={`font-bold text-sm tracking-tight uppercase line-clamp-1 ${student.isAllowed ? 'text-white' : 'text-rose-200/50'}`} title={student.name}>
-                                {student.name}
-                              </h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className={`font-bold text-sm tracking-tight uppercase line-clamp-1 ${student.isAllowed ? 'text-white' : 'text-rose-200/50'}`} title={student.name}>
+                                  {student.name}
+                                </h4>
+                                {student.classLevels && Object.keys(student.classLevels).length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {Object.entries(student.classLevels).map(([cId, lvl]) => {
+                                      const cName = classes.find(c => c.id === cId)?.name || 'Turma';
+                                      return (
+                                        <span key={cId} className="text-[10px] text-sky-300 font-bold bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-500/20 shrink-0">
+                                          {cName}: {getSkillStars(Number(lvl))}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  student.skillLevel && (
+                                    <span className="text-[10px] text-sky-400 font-bold bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-500/20 shrink-0">
+                                      {getSkillStars(student.skillLevel)}
+                                    </span>
+                                  )
+                                )}
+                              </div>
                               <p className="text-slate-500 text-[10px] mt-1 font-mono">SENHA: {student.password}</p>
                             </div>
                             <div className="flex bg-slate-950 rounded-xl p-1 gap-1 shrink-0 border border-slate-800/80">
@@ -1319,6 +1545,102 @@ export default function App() {
 
                     return (
                       <>
+                        {/* SELETOR DE NÍVEL DE JOGO POR ESPORTE */}
+                        <div className="bg-slate-950/80 border border-sky-500/30 rounded-2xl p-4 mb-5 shadow-lg">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2.5">
+                            <div>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-sky-400 block">
+                                Nível de Jogo por Esporte / Turma:
+                              </span>
+                              <p className="text-[11px] text-slate-400">
+                                Você pode definir níveis diferentes para cada esporte (ex: ⭐⭐⭐ em um e ⭐⭐⭐⭐⭐ em outro):
+                              </p>
+                            </div>
+                            {selectedClasses.length === 0 && (
+                              <div className="bg-sky-500/10 border border-sky-500/30 px-3 py-1 rounded-xl flex items-center gap-1.5 w-fit">
+                                <span className="text-xs">{getSkillStars(selectedStudentLevel)}</span>
+                                <span className="text-[10px] font-black text-sky-300 uppercase">
+                                  {SKILL_LEVEL_OPTIONS.find(o => o.level === selectedStudentLevel)?.label}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {selectedClasses.length === 0 ? (
+                            <div>
+                              <p className="text-[10px] text-slate-500 mb-2 font-bold uppercase tracking-wider">
+                                Escolha o nível padrão ou selecione suas turmas abaixo:
+                              </p>
+                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                                {SKILL_LEVEL_OPTIONS.map(opt => {
+                                  const isSelected = selectedStudentLevel === opt.level;
+                                  return (
+                                    <button
+                                      key={opt.level}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedStudentLevel(opt.level);
+                                      }}
+                                      className={`p-2 rounded-xl border text-left flex flex-col items-start justify-center transition-all ${
+                                        isSelected
+                                          ? 'bg-sky-500 text-slate-950 border-sky-400 font-black shadow-[0_0_12px_rgba(14,165,233,0.35)] scale-[1.01]'
+                                          : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-slate-600 hover:bg-slate-850'
+                                      }`}
+                                    >
+                                      <span className="text-xs tracking-tight">{opt.stars}</span>
+                                      <span className={`text-[10px] uppercase font-bold tracking-tight line-clamp-1 ${isSelected ? 'text-slate-950 font-black' : 'text-slate-400'}`}>
+                                        {opt.label}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2.5">
+                              {selectedClasses.map(cid => {
+                                const clsObj = classes.find(c => c.id === cid);
+                                const cName = clsObj?.name || 'Turma';
+                                const currentLvl = selectedStudentLevels[cid] || selectedStudentLevel || 3;
+                                const currentOpt = SKILL_LEVEL_OPTIONS.find(o => o.level === currentLvl);
+                                return (
+                                  <div key={cid} className="bg-slate-900/90 border border-slate-800/90 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></span>
+                                      <span className="text-xs font-black uppercase text-white tracking-tight">
+                                        {cName}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {SKILL_LEVEL_OPTIONS.map(opt => {
+                                        const isSelected = currentLvl === opt.level;
+                                        return (
+                                          <button
+                                            key={opt.level}
+                                            type="button"
+                                            onClick={() => handleStudentClassLevelChange(cid, opt.level)}
+                                            className={`px-2 py-1 rounded-lg border text-xs transition-all flex items-center gap-1 ${
+                                              isSelected
+                                                ? 'bg-sky-500 text-slate-950 border-sky-400 font-black shadow-sm'
+                                                : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-600'
+                                            }`}
+                                            title={opt.label}
+                                          >
+                                            <span>{opt.stars}</span>
+                                          </button>
+                                        );
+                                      })}
+                                      <span className="text-[10px] font-black text-sky-300 ml-1">
+                                        {currentOpt?.label.split(',')[0]}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
                         {/* Selector Tabs: Turmas vs Inserir Convidado */}
                         <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-950/80 rounded-2xl border border-slate-800 mb-6">
                           <button
@@ -1366,11 +1688,14 @@ export default function App() {
                         {enrollmentSubTab === 'classes' && (
                           <div className="flex-1 max-h-[380px] overflow-y-auto custom-scrollbar pr-2 space-y-3 mb-6">
                             <p className="text-xs text-slate-400 mb-3">
-                              Selecione as turmas em que você vai participar:
+                              Selecione as turmas em que você vai participar e ajuste seu nível se desejar:
                             </p>
                             {availableClasses.map(c => {
                               const isSelected = selectedClasses.includes(c.id);
                               const classGuests = (selectedGuests[c.id] || []).filter(g => g.trim().length > 0).slice(0, 2);
+                              const currentLvl = selectedStudentLevels[c.id] || selectedStudentLevel || 3;
+                              const currentOpt = SKILL_LEVEL_OPTIONS.find(o => o.level === currentLvl);
+
                               return (
                                 <div 
                                   key={c.id} 
@@ -1395,6 +1720,43 @@ export default function App() {
                                       {isSelected && <Check className="w-3.5 h-3.5 text-slate-950" />}
                                     </div>
                                   </div>
+
+                                  {/* Seletor de nível específico para esta turma/esporte */}
+                                  {isSelected && (
+                                    <div className="mt-3 pt-3 border-t border-emerald-500/25 space-y-2" onClick={(e) => e.stopPropagation()}>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300">
+                                          Seu nível em {c.name}:
+                                        </span>
+                                        <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-lg border border-emerald-500/30">
+                                          {getSkillStars(currentLvl)} {currentOpt?.label}
+                                        </span>
+                                      </div>
+                                      <div className="grid grid-cols-5 gap-1">
+                                        {SKILL_LEVEL_OPTIONS.map(opt => {
+                                          const isCurrentLvl = currentLvl === opt.level;
+                                          return (
+                                            <button
+                                              key={opt.level}
+                                              type="button"
+                                              onClick={() => handleStudentClassLevelChange(c.id, opt.level)}
+                                              className={`py-1.5 px-1 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${
+                                                isCurrentLvl
+                                                  ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-black shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+                                                  : 'bg-slate-950/80 text-slate-400 border-slate-700/60 hover:border-slate-500'
+                                              }`}
+                                              title={opt.label}
+                                            >
+                                              <span className="text-xs">{opt.stars}</span>
+                                              <span className={`text-[8px] uppercase tracking-tight line-clamp-1 font-bold ${isCurrentLvl ? 'text-slate-950' : 'text-slate-400'}`}>
+                                                {opt.label.split(',')[0]}
+                                              </span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
 
                                   <div className="mt-3 pt-3 border-t border-slate-700/40 flex items-center justify-between">
                                     <button
@@ -1473,12 +1835,12 @@ export default function App() {
                                 </div>
 
                                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                                  Insira os convidados para <strong className="text-white">{activeGuestClass.name}</strong>. Na lista oficial, eles aparecerão com outra cor identificados como <strong className="text-amber-300 font-bold">(CONVIDADO DE {studentName})</strong>.
+                                  Insira os convidados para <strong className="text-white">{activeGuestClass.name}</strong>. Na lista oficial, eles aparecerão com outra cor identificados como <strong className="text-amber-300 font-bold">(CONVIDADO DE {studentName})</strong> e apenas as estrelas do nível.
                                 </p>
 
-                                <div className="space-y-3">
+                                <div className="space-y-4">
                                   {/* Convidado 1 */}
-                                  <div className="space-y-1">
+                                  <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-wider text-slate-300">
                                       1º Convidado:
                                     </label>
@@ -1502,15 +1864,55 @@ export default function App() {
                                         </button>
                                       )}
                                     </div>
+
+                                    {/* Seletor de Nível do Convidado 1 */}
                                     {selectedGuests[activeGuestClass.id]?.[0]?.trim() && (
-                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mt-1">
-                                        Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][0].trim()} (CONVIDADO DE {studentName})</strong>
+                                      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[10px] font-bold uppercase text-slate-400">
+                                            Nível do 1º Convidado:
+                                          </span>
+                                          <span className="text-[10px] font-black text-amber-300">
+                                            {getSkillStars(selectedGuestLevels[activeGuestClass.id]?.[0] || 3)} {SKILL_LEVEL_OPTIONS.find(o => o.level === (selectedGuestLevels[activeGuestClass.id]?.[0] || 3))?.label}
+                                          </span>
+                                        </div>
+                                        <div className="grid grid-cols-5 gap-1">
+                                          {SKILL_LEVEL_OPTIONS.map(opt => {
+                                            const isCurrent = (selectedGuestLevels[activeGuestClass.id]?.[0] || 3) === opt.level;
+                                            return (
+                                              <button
+                                                key={opt.level}
+                                                type="button"
+                                                onClick={() => handleGuestLevelChange(activeGuestClass.id, 0, opt.level)}
+                                                className={`py-1.5 px-1 rounded-lg border text-center transition-all flex flex-col items-center justify-center ${
+                                                  isCurrent
+                                                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-sm'
+                                                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
+                                                }`}
+                                                title={opt.label}
+                                              >
+                                                <span className="text-[10px] leading-tight">{opt.stars}</span>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {selectedGuests[activeGuestClass.id]?.[0]?.trim() && (
+                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mt-1 flex items-center justify-between">
+                                        <span>
+                                          Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][0].trim()} (CONVIDADO DE {studentName})</strong>
+                                        </span>
+                                        <span className="text-amber-400 font-bold ml-2 shrink-0">
+                                          {getSkillStars(selectedGuestLevels[activeGuestClass.id]?.[0] || 3)}
+                                        </span>
                                       </div>
                                     )}
                                   </div>
 
                                   {/* Convidado 2 */}
-                                  <div className="space-y-1 pt-2 border-t border-slate-900">
+                                  <div className="space-y-2 pt-3 border-t border-slate-900">
                                     <label className="text-[10px] font-black uppercase tracking-wider text-slate-300">
                                       2º Convidado:
                                     </label>
@@ -1534,9 +1936,49 @@ export default function App() {
                                         </button>
                                       )}
                                     </div>
+
+                                    {/* Seletor de Nível do Convidado 2 */}
                                     {selectedGuests[activeGuestClass.id]?.[1]?.trim() && (
-                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mt-1">
-                                        Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][1].trim()} (CONVIDADO DE {studentName})</strong>
+                                      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 mt-1.5 space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[10px] font-bold uppercase text-slate-400">
+                                            Nível do 2º Convidado:
+                                          </span>
+                                          <span className="text-[10px] font-black text-amber-300">
+                                            {getSkillStars(selectedGuestLevels[activeGuestClass.id]?.[1] || 3)} {SKILL_LEVEL_OPTIONS.find(o => o.level === (selectedGuestLevels[activeGuestClass.id]?.[1] || 3))?.label}
+                                          </span>
+                                        </div>
+                                        <div className="grid grid-cols-5 gap-1">
+                                          {SKILL_LEVEL_OPTIONS.map(opt => {
+                                            const isCurrent = (selectedGuestLevels[activeGuestClass.id]?.[1] || 3) === opt.level;
+                                            return (
+                                              <button
+                                                key={opt.level}
+                                                type="button"
+                                                onClick={() => handleGuestLevelChange(activeGuestClass.id, 1, opt.level)}
+                                                className={`py-1.5 px-1 rounded-lg border text-center transition-all flex flex-col items-center justify-center ${
+                                                  isCurrent
+                                                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-sm'
+                                                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
+                                                }`}
+                                                title={opt.label}
+                                              >
+                                                <span className="text-[10px] leading-tight">{opt.stars}</span>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {selectedGuests[activeGuestClass.id]?.[1]?.trim() && (
+                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mt-1 flex items-center justify-between">
+                                        <span>
+                                          Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][1].trim()} (CONVIDADO DE {studentName})</strong>
+                                        </span>
+                                        <span className="text-amber-400 font-bold ml-2 shrink-0">
+                                          {getSkillStars(selectedGuestLevels[activeGuestClass.id]?.[1] || 3)}
+                                        </span>
                                       </div>
                                     )}
                                   </div>
@@ -1547,8 +1989,29 @@ export default function App() {
                         )}
 
                         {/* Summary of selections */}
-                        <div className="bg-slate-950/40 rounded-xl p-3 mb-4 border border-slate-800 text-[11px] text-slate-400 flex flex-col gap-1">
-                          <div className="flex justify-between items-center">
+                        <div className="bg-slate-950/40 rounded-xl p-3 mb-4 border border-slate-800 text-[11px] text-slate-400 flex flex-col gap-2">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
+                            <span>Seu nível por esporte:</span>
+                            <div className="flex flex-wrap gap-1.5 justify-start sm:justify-end">
+                              {selectedClasses.length > 0 ? (
+                                selectedClasses.map(cid => {
+                                  const cName = classes.find(c => c.id === cid)?.name || 'Turma';
+                                  const lvl = selectedStudentLevels[cid] || selectedStudentLevel || 3;
+                                  return (
+                                    <span key={cid} className="bg-slate-900 border border-slate-700/80 px-2 py-0.5 rounded text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                                      <span>{cName}:</span>
+                                      <span className="text-sky-300 font-mono">{getSkillStars(lvl)}</span>
+                                    </span>
+                                  );
+                                })
+                              ) : (
+                                <strong className="text-sky-400">
+                                  {getSkillStars(selectedStudentLevel)} ({SKILL_LEVEL_OPTIONS.find(o => o.level === selectedStudentLevel)?.label})
+                                </strong>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
                             <span>Suas turmas selecionadas:</span>
                             <strong className="text-emerald-400 uppercase">
                               {selectedClasses.length > 0 
@@ -1810,61 +2273,57 @@ export default function App() {
                   <div className="space-y-8">
                     {classes.filter(c => c.isOpen).map(cls => (
                       <div key={cls.id} className="relative">
-                        <div className="flex flex-col mb-4 gap-1">
-                          <h3 className="text-lg md:text-xl font-black text-white uppercase tracking-tight">
-                            {cls.name}
-                          </h3>
-                          <span className="text-sky-400/80 text-xs font-bold tracking-widest uppercase">
-                            {cls.description}
-                          </span>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                          <div>
+                            <h3 className="text-lg md:text-xl font-black text-white uppercase tracking-tight">
+                              {cls.name}
+                            </h3>
+                            <span className="text-sky-400/80 text-xs font-bold tracking-widest uppercase">
+                              {cls.description}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setActiveDrawClassId(cls.id)}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shrink-0 w-fit ${
+                              savedDraws[cls.id]
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                                : 'bg-slate-850 hover:bg-slate-800 text-sky-400 border border-slate-700/60 hover:border-sky-500/40'
+                            }`}
+                          >
+                            <Shuffle className="w-3.5 h-3.5 text-sky-400" />
+                            {savedDraws[cls.id] ? 'Ver Times Sorteados 📋' : 'Sortear Linhas ⚖️'}
+                          </button>
                         </div>
+
+                        {savedDraws[cls.id] && (
+                          <div 
+                            onClick={() => setActiveDrawClassId(cls.id)}
+                            className="cursor-pointer bg-gradient-to-r from-emerald-950/40 via-slate-900 to-sky-950/40 border border-emerald-500/30 hover:border-emerald-500/60 rounded-2xl p-3.5 mb-4 flex items-center justify-between gap-3 transition-all group shadow-sm"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-black text-sm">
+                                ⚽
+                              </div>
+                              <div>
+                                <span className="text-xs font-black uppercase text-emerald-300 tracking-wide block">
+                                  Linhas Sorteadas & Equilibradas!
+                                </span>
+                                <span className="text-[11px] text-slate-400">
+                                  {savedDraws[cls.id].teams.length} times de {savedDraws[cls.id].teamSize} jogadores
+                                  {savedDraws[cls.id].waitlist.length > 0 && ` • ${savedDraws[cls.id].waitlist.length} na espera`}
+                                </span>
+                              </div>
+                            </div>
+                            <span className="text-xs font-bold text-sky-400 group-hover:underline flex items-center gap-1">
+                              Ver Escalação <ArrowRight className="w-3.5 h-3.5" />
+                            </span>
+                          </div>
+                        )}
                         
                         <div className="space-y-2">
                           {(() => {
-                            const classEnrollments = enrollments
-                              .filter(e => (e.classes.includes(cls.id) || (e.guests?.[cls.id] && e.guests[cls.id].length > 0)) && !e.justifiedAbsence)
-                              .sort((a, b) => a.updatedAt - b.updatedAt);
-
-                            interface Participant {
-                              key: string;
-                              name: string;
-                              isGuest: boolean;
-                              guestOf?: string;
-                              studentId: string;
-                            }
-
-                            const participants: Participant[] = [];
-                            for (const enr of classEnrollments) {
-                              const st = students.find(s => s.id === enr.studentId);
-                              const studentName = st?.name || 'Aluno Desconhecido';
-                              
-                              // Add the enrolled student if enrolled
-                              if (enr.classes.includes(cls.id)) {
-                                participants.push({
-                                  key: `${enr.studentId}-main`,
-                                  name: studentName,
-                                  isGuest: false,
-                                  studentId: enr.studentId,
-                                });
-                              }
-
-                              // Add up to 2 guests for this class
-                              const guestList = (enr.guests?.[cls.id] || [])
-                                .map(g => g.trim())
-                                .filter(g => g.length > 0)
-                                .slice(0, 2);
-
-                              for (let gIdx = 0; gIdx < guestList.length; gIdx++) {
-                                participants.push({
-                                  key: `${enr.studentId}-guest-${gIdx}`,
-                                  name: guestList[gIdx],
-                                  isGuest: true,
-                                  guestOf: studentName,
-                                  studentId: enr.studentId,
-                                });
-                              }
-                            }
-
+                            const participants = getClassParticipants(cls.id);
                             const maxVagas = cls.multiplier * 5;
                             const isFull = participants.length >= maxVagas;
                             
@@ -1907,26 +2366,42 @@ export default function App() {
                                           {idx + 1}
                                         </div>
                                         <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2 flex-1 min-w-0">
-                                          <span className={`text-xs md:text-sm font-black uppercase truncate ${
-                                            isWaitlist 
-                                              ? 'text-rose-200/70' 
-                                              : p.isGuest 
-                                                ? 'text-amber-300' 
-                                                : 'text-emerald-400'
-                                          }`}>
-                                            {p.name}
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className={`text-xs md:text-sm font-black uppercase truncate ${
+                                              isWaitlist 
+                                                ? 'text-rose-200/70' 
+                                                : p.isGuest 
+                                                  ? 'text-amber-300' 
+                                                  : 'text-emerald-400'
+                                            }`}>
+                                              {p.name}
+                                            </span>
+                                            {p.isGuest && (
+                                              <span className="text-[10px] md:text-xs font-black text-amber-400 uppercase tracking-wide shrink-0">
+                                                (CONVIDADO DE {p.guestOf})
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Stars Badge - strictly stars as requested */}
+                                        <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                          <span 
+                                            className={`text-[11px] tracking-tight px-2 py-0.5 rounded-lg border font-mono select-none ${
+                                              p.isGuest
+                                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                                                : 'bg-slate-950/80 border-slate-700/60 text-sky-300'
+                                            }`}
+                                            title={`Nível: ${SKILL_LEVEL_OPTIONS.find(o => o.level === p.level)?.label || 'Regular'}`}
+                                          >
+                                            {getSkillStars(p.level)}
                                           </span>
-                                          {p.isGuest && (
-                                            <span className="text-[10px] md:text-xs font-black text-amber-400 uppercase tracking-wide shrink-0">
-                                              (CONVIDADO DE {p.guestOf})
+                                          {isWaitlist && (
+                                            <span className="text-[9px] font-black tracking-widest uppercase text-rose-400 border border-rose-400/30 px-2 py-1 rounded-md shrink-0">
+                                              Espera
                                             </span>
                                           )}
                                         </div>
-                                        {isWaitlist && (
-                                          <span className="ml-auto text-[9px] font-black tracking-widest uppercase text-rose-400 border border-rose-400/30 px-2 py-1 rounded-md shrink-0">
-                                            Espera
-                                          </span>
-                                        )}
                                       </div>
                                     </div>
                                   );
@@ -2000,6 +2475,18 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {activeDrawClassId && (
+        <TeamDrawModal
+          isOpen={!!activeDrawClassId}
+          onClose={() => setActiveDrawClassId(null)}
+          classId={activeDrawClassId}
+          className={classes.find(c => c.id === activeDrawClassId)?.name || 'Turma'}
+          participants={getClassParticipants(activeDrawClassId)}
+          savedDraw={savedDraws[activeDrawClassId]}
+          onSaveDraw={handleSaveDraw}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "Student": {
+      "title": "Student",
+      "description": "Aluno cadastrado no sistema Tsunami",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "password": { "type": "string" },
+        "isAllowed": { "type": "boolean" },
+        "behaviorScore": { "type": "number" },
+        "classLevels": { "type": "object", "description": "Nível em estrelas (1 a 5) por turma/esporte" },
+        "skillLevel": { "type": "number", "description": "Nível de jogo de 1 a 5 estrelas" }
+      },
+      "required": ["id", "name", "isAllowed"]
+    },
+    "Enrollment": {
+      "title": "Enrollment",
+      "description": "Inscrição do aluno e seus convidados com nível de jogo",
+      "type": "object",
+      "properties": {
+        "classes": { "type": "array" },
+        "classLevels": { "type": "object", "description": "Nível em estrelas (1 a 5) do aluno por turma/esporte" },
+        "guests": { "type": "object", "description": "Convidados por id de turma" },
+        "guestLevels": { "type": "object", "description": "Nível em estrelas (1 a 5) de cada convidado" },
+        "skillLevel": { "type": "number", "description": "Nível em estrelas padrão do aluno (1 a 5)" },
+        "justifiedAbsence": { "type": "boolean" },
+        "absenceReason": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/enrollments/{studentId}": {
+      "schema": "Enrollment",
+      "description": "Inscrições oficiais de cada aluno e seus convidados"
+    },
+    "/config/settings": {
+      "schema": "object",
+      "description": "Configurações gerais do sistema"
+    },
+    "/activity_logs/{logId}": {
+      "schema": "object",
+      "description": "Histórico de logs de atividade"
+    }
+  }
+}
