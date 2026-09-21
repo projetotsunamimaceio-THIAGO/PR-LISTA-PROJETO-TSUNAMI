@@ -466,6 +466,43 @@ export default function App() {
     }
   };
 
+  const handleAdminSetStudentLevel = async (studentId: string, level: number) => {
+    const clamped = Math.max(1, Math.min(5, Math.round(level)));
+    const updatedStudents = students.map(s => s.id === studentId ? {
+      ...s,
+      skillLevel: clamped
+    } : s);
+    setStudents(updatedStudents);
+
+    // Also update existing enrollment if present
+    const enrollment = enrollments.find(e => e.studentId === studentId);
+    if (enrollment) {
+      setEnrollments(prev => prev.map(e => e.studentId === studentId ? { ...e, skillLevel: clamped } : e));
+      try {
+        await setDoc(doc(db, "enrollments", studentId), {
+          skillLevel: clamped,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch (err) {
+        console.error("Erro ao atualizar enrollment", err);
+      }
+    }
+
+    saveConfig(updatedStudents, classes);
+
+    const studentName = students.find(s => s.id === studentId)?.name || 'Aluno';
+    try {
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Professor (Admin)',
+        action: 'changed',
+        details: `Definiu nível de "${studentName}" para ${clamped}★ (${'⭐'.repeat(clamped)})`,
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Erro ao registrar log de nível", err);
+    }
+  };
+
   const handleSaveNotice = async (textToSave?: string) => {
     const value = textToSave !== undefined ? textToSave : notice;
     setIsSavingNotice(true);
@@ -821,10 +858,6 @@ export default function App() {
     setSelectedClasses(prev => {
       const willInclude = !prev.includes(classId);
       if (willInclude) {
-        setSelectedStudentLevels(currentLevels => ({
-          ...currentLevels,
-          [classId]: currentLevels[classId] || selectedStudentLevel || 3
-        }));
         return [...prev, classId];
       } else {
         return prev.filter(id => id !== classId);
@@ -845,46 +878,52 @@ export default function App() {
       let details = '';
 
       // Clean guests: only keep valid non-empty guests for each class (max 2 per class)
+      // Levels for guests are preserved from what the professor set, or default to 3
       const cleanedGuests: Record<string, string[]> = {};
-      const cleanedGuestLevels: Record<string, number[]> = {};
+      const preservedGuestLevels: Record<string, number[]> = {};
       let totalGuestsCount = 0;
       const guestDetailsSummary: string[] = [];
 
       for (const [classId, rawList] of Object.entries(selectedGuests)) {
-        const rawLevels = selectedGuestLevels[classId] || [3, 3];
         const list: string[] = [];
         const levels: number[] = [];
+        const existingGLevels = existingEnrollment?.guestLevels?.[classId] || [3, 3];
 
         const rawArray = ((rawList as string[]) || []).slice(0, 2);
         rawArray.forEach((rawName, i) => {
           const trimmed = (rawName || '').trim();
           if (trimmed.length > 0) {
             list.push(trimmed);
-            const lvl = rawLevels[i] && rawLevels[i] >= 1 && rawLevels[i] <= 5 ? rawLevels[i] : 3;
+            // Preserve level assigned by professor if exists, else default to 3
+            const lvl = existingGLevels[i] && existingGLevels[i] >= 1 && existingGLevels[i] <= 5 ? existingGLevels[i] : 3;
             levels.push(lvl);
           }
         });
         
         if (list.length > 0) {
           cleanedGuests[classId] = list;
-          cleanedGuestLevels[classId] = levels;
+          preservedGuestLevels[classId] = levels;
           totalGuestsCount += list.length;
           const cName = classes.find(c => c.id === classId)?.name || 'Turma';
-          guestDetailsSummary.push(`${cName}: ${list.map((g, idx) => `${g} (${getSkillStars(levels[idx])})`).join(', ')}`);
+          guestDetailsSummary.push(`${cName}: ${list.join(', ')}`);
         }
       }
 
-      // Clean student class levels
-      const cleanedClassLevels: Record<string, number> = {};
+      // Preserve student levels assigned exclusively by the professor
+      const preservedClassLevels: Record<string, number> = {
+        ...(student?.classLevels || {}),
+        ...(existingEnrollment?.classLevels || {})
+      };
+      const assignedBaseLevel = student?.skillLevel || existingEnrollment?.skillLevel || 3;
+
       for (const cid of selectedClasses) {
-        const rawLvl = selectedStudentLevels[cid];
-        cleanedClassLevels[cid] = rawLvl && rawLvl >= 1 && rawLvl <= 5 ? rawLvl : (selectedStudentLevel || 3);
+        if (!preservedClassLevels[cid]) {
+          preservedClassLevels[cid] = assignedBaseLevel;
+        }
       }
 
-      const classWithLevelsStr = selectedClasses.map(cid => {
-        const cName = classes.find(c => c.id === cid)?.name || 'Turma';
-        const stars = getSkillStars(cleanedClassLevels[cid]);
-        return `${cName} [${stars}]`;
+      const classNamesStr = selectedClasses.map(cid => {
+        return classes.find(c => c.id === cid)?.name || 'Turma';
       }).join(', ');
 
       const hadPrevious = existingClasses.length > 0 || (existingEnrollment?.guests && Object.keys(existingEnrollment.guests).length > 0);
@@ -895,13 +934,13 @@ export default function App() {
         details = 'Cancelou a inscrição e convidados em todas as turmas.';
       } else if (!hadPrevious && hasCurrent) {
         action = 'enrolled';
-        details = classWithLevelsStr ? `Inscreveu-se em: ${classWithLevelsStr}` : `Cadastrou convidados`;
+        details = classNamesStr ? `Inscreveu-se em: ${classNamesStr}` : `Cadastrou convidados`;
         if (totalGuestsCount > 0) {
           details += ` (+ ${totalGuestsCount} ${totalGuestsCount === 1 ? 'convidado' : 'convidados'}: ${guestDetailsSummary.join('; ')})`;
         }
       } else if (hasCurrent) {
         action = 'changed';
-        details = classWithLevelsStr ? `Alterou inscrição para: ${classWithLevelsStr}` : `Alterou convidados`;
+        details = classNamesStr ? `Alterou inscrição para: ${classNamesStr}` : `Alterou convidados`;
         if (totalGuestsCount > 0) {
           details += ` (+ ${totalGuestsCount} ${totalGuestsCount === 1 ? 'convidado' : 'convidados'}: ${guestDetailsSummary.join('; ')})`;
         }
@@ -910,29 +949,16 @@ export default function App() {
         details = 'Salvou a inscrição vazia.';
       }
 
-      const fallbackLevel = selectedClasses.length > 0 ? (cleanedClassLevels[selectedClasses[0]] || selectedStudentLevel) : selectedStudentLevel;
-
       await setDoc(doc(db, "enrollments", selectedStudentId), {
         classes: selectedClasses,
-        classLevels: cleanedClassLevels,
+        classLevels: preservedClassLevels,
         guests: cleanedGuests,
-        guestLevels: cleanedGuestLevels,
-        skillLevel: fallbackLevel,
+        guestLevels: preservedGuestLevels,
+        skillLevel: assignedBaseLevel,
         justifiedAbsence: false,
         absenceReason: null,
         updatedAt: serverTimestamp()
       });
-
-      // Update local student skill level and per-sport levels
-      const updatedStudents = students.map(s => 
-        s.id === selectedStudentId ? { 
-          ...s, 
-          classLevels: { ...(s.classLevels || {}), ...cleanedClassLevels },
-          skillLevel: fallbackLevel 
-        } : s
-      );
-      setStudents(updatedStudents);
-      saveConfig(updatedStudents, classes);
 
       // Add to activity logs
       await addDoc(collection(db, "activity_logs"), {
@@ -1421,28 +1447,41 @@ export default function App() {
                         <div key={student.id} className={`border rounded-2xl p-4 flex flex-col gap-3 transition-colors ${student.isAllowed ? 'bg-slate-800/40 border-slate-700/50' : 'bg-rose-950/10 border-rose-900/30'}`}>
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                 <h4 className={`font-bold text-sm tracking-tight uppercase line-clamp-1 ${student.isAllowed ? 'text-white' : 'text-rose-200/50'}`} title={student.name}>
                                   {student.name}
                                 </h4>
-                                {student.classLevels && Object.keys(student.classLevels).length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {Object.entries(student.classLevels).map(([cId, lvl]) => {
-                                      const cName = classes.find(c => c.id === cId)?.name || 'Turma';
+                                
+                                {/* 1-Click Star Selector for Professor */}
+                                <div className="flex items-center gap-1 bg-slate-950/90 border border-amber-500/30 px-2 py-0.5 rounded-lg w-fit">
+                                  <span className="text-[9px] font-black uppercase text-amber-400 mr-0.5">
+                                    Nível:
+                                  </span>
+                                  <div className="flex items-center gap-0.5">
+                                    {([1, 2, 3, 4, 5] as const).map(starNum => {
+                                      const currentLevel = student.skillLevel || 3;
+                                      const isSelected = starNum <= currentLevel;
                                       return (
-                                        <span key={cId} className="text-[10px] text-sky-300 font-bold bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-500/20 shrink-0">
-                                          {cName}: {getSkillStars(Number(lvl))}
-                                        </span>
+                                        <button
+                                          key={starNum}
+                                          type="button"
+                                          onClick={() => handleAdminSetStudentLevel(student.id, starNum)}
+                                          title={`Definir nível do aluno para ${starNum} estrelas`}
+                                          className={`text-xs leading-none transition-transform hover:scale-125 active:scale-95 p-0.5 cursor-pointer ${
+                                            isSelected
+                                              ? 'opacity-100 drop-shadow-[0_0_4px_rgba(250,204,21,0.6)]'
+                                              : 'opacity-25 hover:opacity-75 grayscale'
+                                          }`}
+                                        >
+                                          ⭐
+                                        </button>
                                       );
                                     })}
                                   </div>
-                                ) : (
-                                  student.skillLevel && (
-                                    <span className="text-[10px] text-sky-400 font-bold bg-sky-500/10 px-1.5 py-0.5 rounded border border-sky-500/20 shrink-0">
-                                      {getSkillStars(student.skillLevel)}
-                                    </span>
-                                  )
-                                )}
+                                  <span className="text-[10px] font-mono text-amber-300 font-bold ml-1">
+                                    {student.skillLevel || 3}★
+                                  </span>
+                                </div>
                               </div>
                               <p className="text-slate-500 text-[10px] mt-1 font-mono">SENHA: {student.password}</p>
                             </div>
@@ -1725,100 +1764,41 @@ export default function App() {
 
                     return (
                       <>
-                        {/* SELETOR DE NÍVEL DE JOGO POR ESPORTE */}
-                        <div className="bg-slate-950/80 border border-sky-500/30 rounded-2xl p-4 mb-5 shadow-lg">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2.5">
-                            <div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-sky-400 block">
-                                Nível de Jogo por Esporte / Turma:
-                              </span>
-                              <p className="text-[11px] text-slate-400">
-                                Você pode definir níveis diferentes para cada esporte (ex: ⭐⭐⭐ em um e ⭐⭐⭐⭐⭐ em outro):
-                              </p>
-                            </div>
-                            {selectedClasses.length === 0 && (
-                              <div className="bg-sky-500/10 border border-sky-500/30 px-3 py-1 rounded-xl flex items-center gap-1.5 w-fit">
-                                <span className="text-xs">{getSkillStars(selectedStudentLevel)}</span>
-                                <span className="text-[10px] font-black text-sky-300 uppercase">
-                                  {SKILL_LEVEL_OPTIONS.find(o => o.level === selectedStudentLevel)?.label}
-                                </span>
-                              </div>
-                            )}
+                        {/* AVISO: NÍVEL DEFINIDO EXCLUSIVAMENTE PELO PROFESSOR */}
+                        <div className="bg-slate-950/80 border border-sky-500/30 rounded-2xl p-4 mb-5 shadow-lg flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center text-xl shrink-0">
+                            ⭐
                           </div>
-
-                          {selectedClasses.length === 0 ? (
-                            <div>
-                              <p className="text-[10px] text-slate-500 mb-2 font-bold uppercase tracking-wider">
-                                Escolha o nível padrão ou selecione suas turmas abaixo:
-                              </p>
-                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
-                                {SKILL_LEVEL_OPTIONS.map(opt => {
-                                  const isSelected = selectedStudentLevel === opt.level;
-                                  return (
-                                    <button
-                                      key={opt.level}
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedStudentLevel(opt.level);
-                                      }}
-                                      className={`p-2 rounded-xl border text-left flex flex-col items-start justify-center transition-all ${
-                                        isSelected
-                                          ? 'bg-sky-500 text-slate-950 border-sky-400 font-black shadow-[0_0_12px_rgba(14,165,233,0.35)] scale-[1.01]'
-                                          : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:border-slate-600 hover:bg-slate-850'
-                                      }`}
-                                    >
-                                      <span className="text-xs tracking-tight">{opt.stars}</span>
-                                      <span className={`text-[10px] uppercase font-bold tracking-tight line-clamp-1 ${isSelected ? 'text-slate-950 font-black' : 'text-slate-400'}`}>
-                                        {opt.label}
-                                      </span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
+                          <div className="flex-1">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
+                              <span className="text-xs font-black uppercase tracking-wider text-sky-300">
+                                Nível de Jogo & Estrelas (Definido pelo Professor)
+                              </span>
+                              <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md w-fit">
+                                Apenas o Professor
+                              </span>
                             </div>
-                          ) : (
-                            <div className="space-y-2.5">
-                              {selectedClasses.map(cid => {
-                                const clsObj = classes.find(c => c.id === cid);
-                                const cName = clsObj?.name || 'Turma';
-                                const currentLvl = selectedStudentLevels[cid] || selectedStudentLevel || 3;
-                                const currentOpt = SKILL_LEVEL_OPTIONS.find(o => o.level === currentLvl);
+                            <p className="text-[11px] text-slate-400 leading-relaxed">
+                              Para manter os sorteios de times justos e perfeitamente equilibrados, o nível de estrelas dos atletas e convidados é avaliado e definido <strong className="text-white">exclusivamente pelo Professor</strong> do projeto.
+                            </p>
+                            {/* Mostra o nível atual já atribuído pelo professor */}
+                            {(() => {
+                              const existingLevel = student?.skillLevel || enrollments.find(e => e.studentId === selectedStudentId)?.skillLevel;
+                              if (existingLevel) {
                                 return (
-                                  <div key={cid} className="bg-slate-900/90 border border-slate-800/90 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                                    <div className="flex items-center gap-2">
-                                      <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></span>
-                                      <span className="text-xs font-black uppercase text-white tracking-tight">
-                                        {cName}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      {SKILL_LEVEL_OPTIONS.map(opt => {
-                                        const isSelected = currentLvl === opt.level;
-                                        return (
-                                          <button
-                                            key={opt.level}
-                                            type="button"
-                                            onClick={() => handleStudentClassLevelChange(cid, opt.level)}
-                                            className={`px-2 py-1 rounded-lg border text-xs transition-all flex items-center gap-1 ${
-                                              isSelected
-                                                ? 'bg-sky-500 text-slate-950 border-sky-400 font-black shadow-sm'
-                                                : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-600'
-                                            }`}
-                                            title={opt.label}
-                                          >
-                                            <span>{opt.stars}</span>
-                                          </button>
-                                        );
-                                      })}
-                                      <span className="text-[10px] font-black text-sky-300 ml-1">
-                                        {currentOpt?.label.split(',')[0]}
-                                      </span>
-                                    </div>
+                                  <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                      Seu nível avaliado pelo professor:
+                                    </span>
+                                    <span className="text-xs font-mono text-amber-300 font-bold bg-slate-900 border border-amber-500/30 px-2.5 py-0.5 rounded-lg">
+                                      {getSkillStars(existingLevel)} ({existingLevel}★)
+                                    </span>
                                   </div>
                                 );
-                              })}
-                            </div>
-                          )}
+                              }
+                              return null;
+                            })()}
+                          </div>
                         </div>
 
                         {/* Selector Tabs: Turmas vs Inserir Convidado */}
@@ -1901,40 +1881,15 @@ export default function App() {
                                     </div>
                                   </div>
 
-                                  {/* Seletor de nível específico para esta turma/esporte */}
+                                  {/* Exibição de nível definido pelo professor */}
                                   {isSelected && (
-                                    <div className="mt-3 pt-3 border-t border-emerald-500/25 space-y-2" onClick={(e) => e.stopPropagation()}>
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300">
-                                          Seu nível em {c.name}:
-                                        </span>
-                                        <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-lg border border-emerald-500/30">
-                                          {getSkillStars(currentLvl)} {currentOpt?.label}
-                                        </span>
-                                      </div>
-                                      <div className="grid grid-cols-5 gap-1">
-                                        {SKILL_LEVEL_OPTIONS.map(opt => {
-                                          const isCurrentLvl = currentLvl === opt.level;
-                                          return (
-                                            <button
-                                              key={opt.level}
-                                              type="button"
-                                              onClick={() => handleStudentClassLevelChange(c.id, opt.level)}
-                                              className={`py-1.5 px-1 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${
-                                                isCurrentLvl
-                                                  ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-black shadow-[0_0_10px_rgba(16,185,129,0.3)]'
-                                                  : 'bg-slate-950/80 text-slate-400 border-slate-700/60 hover:border-slate-500'
-                                              }`}
-                                              title={opt.label}
-                                            >
-                                              <span className="text-xs">{opt.stars}</span>
-                                              <span className={`text-[8px] uppercase tracking-tight line-clamp-1 font-bold ${isCurrentLvl ? 'text-slate-950' : 'text-slate-400'}`}>
-                                                {opt.label.split(',')[0]}
-                                              </span>
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
+                                    <div className="mt-3 pt-3 border-t border-emerald-500/20 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300">
+                                        Nível nesta turma (definido pelo professor):
+                                      </span>
+                                      <span className="text-xs text-amber-300 font-mono font-bold bg-slate-950 px-2.5 py-0.5 rounded-lg border border-emerald-500/30">
+                                        {getSkillStars(student?.classLevels?.[c.id] || student?.skillLevel || 3)}
+                                      </span>
                                     </div>
                                   )}
 
@@ -2045,47 +2000,13 @@ export default function App() {
                                       )}
                                     </div>
 
-                                    {/* Seletor de Nível do Convidado 1 */}
                                     {selectedGuests[activeGuestClass.id]?.[0]?.trim() && (
-                                      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 space-y-1.5">
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-[10px] font-bold uppercase text-slate-400">
-                                            Nível do 1º Convidado:
-                                          </span>
-                                          <span className="text-[10px] font-black text-amber-300">
-                                            {getSkillStars(selectedGuestLevels[activeGuestClass.id]?.[0] || 3)} {SKILL_LEVEL_OPTIONS.find(o => o.level === (selectedGuestLevels[activeGuestClass.id]?.[0] || 3))?.label}
-                                          </span>
-                                        </div>
-                                        <div className="grid grid-cols-5 gap-1">
-                                          {SKILL_LEVEL_OPTIONS.map(opt => {
-                                            const isCurrent = (selectedGuestLevels[activeGuestClass.id]?.[0] || 3) === opt.level;
-                                            return (
-                                              <button
-                                                key={opt.level}
-                                                type="button"
-                                                onClick={() => handleGuestLevelChange(activeGuestClass.id, 0, opt.level)}
-                                                className={`py-1.5 px-1 rounded-lg border text-center transition-all flex flex-col items-center justify-center ${
-                                                  isCurrent
-                                                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-sm'
-                                                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
-                                                }`}
-                                                title={opt.label}
-                                              >
-                                                <span className="text-[10px] leading-tight">{opt.stars}</span>
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {selectedGuests[activeGuestClass.id]?.[0]?.trim() && (
-                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mt-1 flex items-center justify-between">
+                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                                         <span>
                                           Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][0].trim()} (CONVIDADO DE {studentName})</strong>
                                         </span>
-                                        <span className="text-amber-400 font-bold ml-2 shrink-0">
-                                          {getSkillStars(selectedGuestLevels[activeGuestClass.id]?.[0] || 3)}
+                                        <span className="text-[9px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 uppercase shrink-0 w-fit">
+                                          Nível avaliado pelo professor
                                         </span>
                                       </div>
                                     )}
@@ -2117,47 +2038,13 @@ export default function App() {
                                       )}
                                     </div>
 
-                                    {/* Seletor de Nível do Convidado 2 */}
                                     {selectedGuests[activeGuestClass.id]?.[1]?.trim() && (
-                                      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 mt-1.5 space-y-1.5">
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-[10px] font-bold uppercase text-slate-400">
-                                            Nível do 2º Convidado:
-                                          </span>
-                                          <span className="text-[10px] font-black text-amber-300">
-                                            {getSkillStars(selectedGuestLevels[activeGuestClass.id]?.[1] || 3)} {SKILL_LEVEL_OPTIONS.find(o => o.level === (selectedGuestLevels[activeGuestClass.id]?.[1] || 3))?.label}
-                                          </span>
-                                        </div>
-                                        <div className="grid grid-cols-5 gap-1">
-                                          {SKILL_LEVEL_OPTIONS.map(opt => {
-                                            const isCurrent = (selectedGuestLevels[activeGuestClass.id]?.[1] || 3) === opt.level;
-                                            return (
-                                              <button
-                                                key={opt.level}
-                                                type="button"
-                                                onClick={() => handleGuestLevelChange(activeGuestClass.id, 1, opt.level)}
-                                                className={`py-1.5 px-1 rounded-lg border text-center transition-all flex flex-col items-center justify-center ${
-                                                  isCurrent
-                                                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-sm'
-                                                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
-                                                }`}
-                                                title={opt.label}
-                                              >
-                                                <span className="text-[10px] leading-tight">{opt.stars}</span>
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {selectedGuests[activeGuestClass.id]?.[1]?.trim() && (
-                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mt-1 flex items-center justify-between">
+                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                                         <span>
                                           Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][1].trim()} (CONVIDADO DE {studentName})</strong>
                                         </span>
-                                        <span className="text-amber-400 font-bold ml-2 shrink-0">
-                                          {getSkillStars(selectedGuestLevels[activeGuestClass.id]?.[1] || 3)}
+                                        <span className="text-[9px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 uppercase shrink-0 w-fit">
+                                          Nível avaliado pelo professor
                                         </span>
                                       </div>
                                     )}
@@ -2170,39 +2057,24 @@ export default function App() {
 
                         {/* Summary of selections */}
                         <div className="bg-slate-950/40 rounded-xl p-3 mb-4 border border-slate-800 text-[11px] text-slate-400 flex flex-col gap-2">
-                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
-                            <span>Seu nível por esporte:</span>
-                            <div className="flex flex-wrap gap-1.5 justify-start sm:justify-end">
-                              {selectedClasses.length > 0 ? (
-                                selectedClasses.map(cid => {
-                                  const cName = classes.find(c => c.id === cid)?.name || 'Turma';
-                                  const lvl = selectedStudentLevels[cid] || selectedStudentLevel || 3;
-                                  return (
-                                    <span key={cid} className="bg-slate-900 border border-slate-700/80 px-2 py-0.5 rounded text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                                      <span>{cName}:</span>
-                                      <span className="text-sky-300 font-mono">{getSkillStars(lvl)}</span>
-                                    </span>
-                                  );
-                                })
-                              ) : (
-                                <strong className="text-sky-400">
-                                  {getSkillStars(selectedStudentLevel)} ({SKILL_LEVEL_OPTIONS.find(o => o.level === selectedStudentLevel)?.label})
-                                </strong>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                          <div className="flex justify-between items-center">
                             <span>Suas turmas selecionadas:</span>
                             <strong className="text-emerald-400 uppercase">
                               {selectedClasses.length > 0 
-                                ? selectedClasses.map(cid => classes.find(c => c.id === cid)?.name).filter(Boolean).join(', ')
-                                : 'Nenhuma'}
+                                ? selectedClasses.map(cid => classes.find(c => c.id === cid)?.name).filter(Boolean).join(", ")
+                                : "Nenhuma"}
                             </strong>
                           </div>
                           <div className="flex justify-between items-center">
                             <span>Convidados adicionados:</span>
                             <strong className="text-amber-400">
-                              {totalGuestsCount > 0 ? `${totalGuestsCount} convidado(s)` : 'Nenhum'}
+                              {totalGuestsCount > 0 ? `${totalGuestsCount} convidado(s)` : "Nenhum"}
+                            </strong>
+                          </div>
+                          <div className="flex justify-between items-center pt-1 border-t border-slate-800/60 text-[10px] text-slate-500">
+                            <span>Nível & Estrelas:</span>
+                            <strong className="text-amber-300 font-medium">
+                              Definido Exclusivamente pelo Professor
                             </strong>
                           </div>
                         </div>
