@@ -6,7 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { TeamDrawModal } from "./components/TeamDrawModal";
 import type { Participant, DrawResult } from "./types";
 
-type ClassDay = 'TERÇA' | 'SEXTA' | 'SÁBADO';
+type ClassDay = 'SEGUNDA' | 'TERÇA' | 'QUARTA' | 'QUINTA' | 'SEXTA' | 'SÁBADO' | 'DOMINGO' | string;
+
+export const AVAILABLE_DAYS: ClassDay[] = ['SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO', 'DOMINGO'];
 
 interface ClassItem {
   id: string;
@@ -79,7 +81,17 @@ export default function App() {
   const [quickAdminError, setQuickAdminError] = useState('');
   const [updatedFlashKey, setUpdatedFlashKey] = useState<string | null>(null);
 
-  const [activeDay, setActiveDay] = useState<ClassDay>('SEXTA');
+  const [activeDay, setActiveDay] = useState<ClassDay>(() => {
+    try {
+      const cached = localStorage.getItem('tsunami_active_day');
+      if (cached) return cached as ClassDay;
+    } catch {
+      // fallback
+    }
+    return 'SEXTA';
+  });
+  const [isSavingDay, setIsSavingDay] = useState(false);
+  const [daySavedSuccess, setDaySavedSuccess] = useState(false);
   const [notice, setNotice] = useState('Turmas abertas. Faça sua\ninscrição!!');
   const [isSavingNotice, setIsSavingNotice] = useState(false);
   const [noticeSavedSuccess, setNoticeSavedSuccess] = useState(false);
@@ -178,6 +190,14 @@ export default function App() {
     const unsubscribe = onSnapshot(doc(db, "config", "settings"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
+        if (data.activeDay) {
+          setActiveDay(data.activeDay);
+          try {
+            localStorage.setItem('tsunami_active_day', data.activeDay);
+          } catch {
+            // fallback
+          }
+        }
         if (data.students) setStudents(data.students);
         if (data.classes) setClasses(data.classes);
         if (data.enrollmentsLocked !== undefined) setEnrollmentsLocked(data.enrollmentsLocked);
@@ -242,6 +262,7 @@ export default function App() {
       await setDoc(doc(db, "config", "settings"), {
         students: newStudents,
         classes: newClasses,
+        activeDay: activeDay,
         updatedAt: serverTimestamp()
       }, { merge: true });
     } catch (e) {
@@ -517,6 +538,38 @@ export default function App() {
       console.error("Erro ao salvar aviso no Firebase", e);
     } finally {
       setIsSavingNotice(false);
+    }
+  };
+
+  const handleSetActiveDay = async (dayToSave: ClassDay) => {
+    const cleanDay = (dayToSave || '').trim().toUpperCase();
+    if (!cleanDay) return;
+    setActiveDay(cleanDay);
+    try {
+      localStorage.setItem('tsunami_active_day', cleanDay);
+    } catch {
+      // ignore
+    }
+    setIsSavingDay(true);
+    try {
+      await setDoc(doc(db, "config", "settings"), {
+        activeDay: cleanDay,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      setDaySavedSuccess(true);
+      setTimeout(() => setDaySavedSuccess(false), 2500);
+
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Organização',
+        action: 'changed',
+        details: `Alterou o dia ativo da agenda para: ${cleanDay}`,
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.error("Erro ao salvar dia ativo no Firebase", e);
+    } finally {
+      setIsSavingDay(false);
     }
   };
 
@@ -1250,20 +1303,58 @@ export default function App() {
                 <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-lg shadow-black/10">
                   <div className="mb-6 flex justify-between items-start gap-4">
                     <div className="flex-1">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">
-                        Dia Ativo
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {(['TERÇA', 'SEXTA', 'SÁBADO'] as ClassDay[]).map(day => (
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                          Dia da Semana (Agenda Ativa)
+                        </h3>
+                        {daySavedSuccess && (
+                          <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Salvo no sistema!
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Seleção rápida de dia da semana */}
+                      <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 mb-3">
+                        {AVAILABLE_DAYS.map(day => (
                           <button 
                             key={day}
-                            onClick={() => setActiveDay(day)}
-                            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex-1 text-center ${activeDay === day ? 'bg-sky-500 text-slate-950 shadow-[0_0_10px_rgba(14,165,233,0.3)]' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700'}`}
+                            type="button"
+                            onClick={() => handleSetActiveDay(day)}
+                            disabled={isSavingDay}
+                            className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all text-center border ${
+                              activeDay === day 
+                                ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.35)] scale-[1.02]' 
+                                : 'bg-slate-800/60 text-slate-300 border-slate-700/60 hover:bg-slate-700 hover:text-white'
+                            }`}
                           >
                             {day}
                           </button>
                         ))}
                       </div>
+
+                      {/* Campo customizado */}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={activeDay}
+                          onChange={(e) => setActiveDay(e.target.value.toUpperCase())}
+                          placeholder="Ou digite o dia/horário..."
+                          maxLength={35}
+                          className="flex-1 bg-slate-950/60 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSetActiveDay(activeDay)}
+                          disabled={isSavingDay}
+                          className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-colors shrink-0 flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Save className="w-3.5 h-3.5" /> Salvar
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-2">
+                        Dia exibido na página inicial: <strong className="text-sky-300 uppercase">{activeDay}</strong>
+                      </p>
                     </div>
                   </div>
 
