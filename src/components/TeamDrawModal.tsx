@@ -416,7 +416,7 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
                                   </span>
                                   {player.isGuest && (
                                     <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wide block truncate">
-                                      Convidado de {player.guestOf}
+                                      {player.guestOf ? `Convidado de ${player.guestOf}` : 'Convidado'}
                                     </span>
                                   )}
                                 </div>
@@ -473,7 +473,7 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
                             </span>
                             {player.isGuest && (
                               <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wide block truncate">
-                                Convidado de {player.guestOf}
+                                {player.guestOf ? `Convidado de ${player.guestOf}` : 'Convidado'}
                               </span>
                             )}
                           </div>

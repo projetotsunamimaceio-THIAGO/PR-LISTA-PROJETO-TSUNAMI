@@ -11,6 +11,14 @@ export const TEAM_COLORS = [
   'from-teal-500/20 to-teal-600/10 border-teal-500/30 text-teal-400',
 ];
 
+export const SKILL_LEVEL_OPTIONS = [
+  { level: 1, stars: '⭐', label: 'Iniciante' },
+  { level: 2, stars: '⭐⭐', label: 'Amadora' },
+  { level: 3, stars: '⭐⭐⭐', label: 'Regular, Sabe joga' },
+  { level: 4, stars: '⭐⭐⭐⭐', label: 'Bom' },
+  { level: 5, stars: '⭐⭐⭐⭐⭐', label: 'Muito bom' },
+] as const;
+
 export function getSkillStars(level?: number): string {
   const count = level && level >= 1 && level <= 5 ? level : 3;
   return '⭐'.repeat(count);
@@ -176,7 +184,7 @@ export function formatDrawForWhatsApp(draw: DrawResult): string {
     const emoji = emojis[tIdx % emojis.length];
     msg += `${emoji} *TIME ${tIdx + 1}* (Média: ${team.averageStars} ⭐ | Total: ${team.totalStars} pts)\n`;
     team.players.forEach((p, pIdx) => {
-      const guestText = p.isGuest ? ` _(Convidado de ${p.guestOf})_` : '';
+      const guestText = p.isGuest ? (p.guestOf ? ` _(Convidado de ${p.guestOf})_` : ' _(Convidado)_') : '';
       msg += `  ${pIdx + 1}. ${p.name} ${getSkillStars(p.level)}${guestText}\n`;
     });
     msg += `\n`;
@@ -185,7 +193,7 @@ export function formatDrawForWhatsApp(draw: DrawResult): string {
   if (draw.waitlist.length > 0) {
     msg += `⏳ *ESPERA DE LINHA (${draw.waitlist.length} ${draw.waitlist.length === 1 ? 'jogador' : 'jogadores'}):*\n`;
     draw.waitlist.forEach((p, idx) => {
-      const guestText = p.isGuest ? ` _(Convidado de ${p.guestOf})_` : '';
+      const guestText = p.isGuest ? (p.guestOf ? ` _(Convidado de ${p.guestOf})_` : ' _(Convidado)_') : '';
       msg += `  ${idx + 1}. ${p.name} ${getSkillStars(p.level)}${guestText}\n`;
     });
     msg += `\n_Os jogadores da espera de linha entram conforme o rodízio ou desistências._\n`;

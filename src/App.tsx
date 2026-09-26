@@ -4,6 +4,7 @@ import { doc, setDoc, getDocs, deleteDoc, onSnapshot, collection, serverTimestam
 import { db } from "./lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import { TeamDrawModal } from "./components/TeamDrawModal";
+import { SaturdaySportModal } from "./components/SaturdaySportModal";
 import type { Participant, DrawResult } from "./types";
 
 type ClassDay = 'SEGUNDA' | 'TERÇA' | 'QUARTA' | 'QUINTA' | 'SEXTA' | 'SÁBADO' | 'DOMINGO' | string;
@@ -45,6 +46,9 @@ interface Student {
 
 interface EnrollmentRecord {
   studentId: string;
+  studentName?: string;
+  isGuest?: boolean;
+  guestOf?: string;
   classes: string[];
   classLevels?: Record<string, number>;
   guests?: Record<string, string[]>;
@@ -77,6 +81,7 @@ export default function App() {
     }
   });
   const [adminQuickLoginOpen, setAdminQuickLoginOpen] = useState(false);
+  const [saturdaySportOpen, setSaturdaySportOpen] = useState(false);
   const [quickAdminPassword, setQuickAdminPassword] = useState('');
   const [quickAdminError, setQuickAdminError] = useState('');
   const [updatedFlashKey, setUpdatedFlashKey] = useState<string | null>(null);
@@ -221,6 +226,9 @@ export default function App() {
         const data = doc.data();
         newEnrollments.push({
           studentId: doc.id,
+          studentName: data.studentName || '',
+          isGuest: !!data.isGuest,
+          guestOf: data.guestOf || '',
           classes: data.classes || [],
           classLevels: data.classLevels || {},
           guests: data.guests || {},
@@ -322,14 +330,15 @@ export default function App() {
 
     for (const enr of classEnrollments) {
       const st = students.find(s => s.id === enr.studentId);
-      const studentName = st?.name || 'Aluno Desconhecido';
+      const studentName = enr.studentName || st?.name || (enr.isGuest ? 'Convidado' : 'Aluno Desconhecido');
       
       if (enr.classes.includes(classId)) {
         const studentLevel = enr.classLevels?.[classId] || enr.skillLevel || st?.classLevels?.[classId] || st?.skillLevel || 3;
         participants.push({
           key: `${enr.studentId}-main`,
           name: studentName,
-          isGuest: false,
+          isGuest: !!enr.isGuest,
+          guestOf: enr.guestOf || (enr.isGuest ? 'Admin' : undefined),
           studentId: enr.studentId,
           level: studentLevel,
           enrolledIndex: count++,
@@ -379,23 +388,41 @@ export default function App() {
       if (!enrollment) return;
 
       if (participant.isGuest) {
-        const gIdx = participant.guestIndex ?? 0;
-        const currentGuestLevels = { ...(enrollment.guestLevels || {}) };
-        const classGLevels = [...(currentGuestLevels[classId] || [3, 3])];
-        while (classGLevels.length <= gIdx) classGLevels.push(3);
-        classGLevels[gIdx] = clampedLevel;
-        currentGuestLevels[classId] = classGLevels;
+        if (participant.guestIndex !== undefined) {
+          const gIdx = participant.guestIndex ?? 0;
+          const currentGuestLevels = { ...(enrollment.guestLevels || {}) };
+          const classGLevels = [...(currentGuestLevels[classId] || [3, 3])];
+          while (classGLevels.length <= gIdx) classGLevels.push(3);
+          classGLevels[gIdx] = clampedLevel;
+          currentGuestLevels[classId] = classGLevels;
 
-        // Instant local update
-        setEnrollments(prev => prev.map(e => e.studentId === participant.studentId ? {
-          ...e,
-          guestLevels: currentGuestLevels
-        } : e));
+          // Instant local update
+          setEnrollments(prev => prev.map(e => e.studentId === participant.studentId ? {
+            ...e,
+            guestLevels: currentGuestLevels
+          } : e));
 
-        await setDoc(doc(db, "enrollments", participant.studentId), {
-          guestLevels: currentGuestLevels,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
+          await setDoc(doc(db, "enrollments", participant.studentId), {
+            guestLevels: currentGuestLevels,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        } else {
+          // Direct guest added by admin
+          const currentClassLevels = { ...(enrollment.classLevels || {}) };
+          currentClassLevels[classId] = clampedLevel;
+
+          setEnrollments(prev => prev.map(e => e.studentId === participant.studentId ? {
+            ...e,
+            classLevels: currentClassLevels,
+            skillLevel: clampedLevel
+          } : e));
+
+          await setDoc(doc(db, "enrollments", participant.studentId), {
+            classLevels: currentClassLevels,
+            skillLevel: clampedLevel,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        }
 
         await addDoc(collection(db, "activity_logs"), {
           studentName: 'Professor (Admin)',
@@ -484,6 +511,236 @@ export default function App() {
       }
     } catch (err) {
       console.error("Erro ao atualizar estrelas pelo professor", err);
+    }
+  };
+
+  // =========================================================================
+  // ESPORTE NO SÁBADO HANDLERS
+  // =========================================================================
+  const handleSaturdayAddStudentToClass = async (studentId: string, classId: string) => {
+    const st = students.find(s => s.id === studentId);
+    const studentName = st?.name || 'Aluno';
+    const className = classes.find(c => c.id === classId)?.name || 'Turma';
+    const existingEnrollment = enrollments.find(e => e.studentId === studentId);
+
+    const currentClasses = existingEnrollment ? existingEnrollment.classes : [];
+    if (currentClasses.includes(classId)) return;
+
+    const newClasses = [...currentClasses, classId];
+    const studentLevel = existingEnrollment?.skillLevel || st?.skillLevel || 3;
+    const currentClassLevels = { ...(existingEnrollment?.classLevels || {}), [classId]: studentLevel };
+
+    // Optimistic UI update
+    setEnrollments(prev => {
+      const exists = prev.some(e => e.studentId === studentId);
+      if (exists) {
+        return prev.map(e => e.studentId === studentId ? { ...e, classes: newClasses, classLevels: currentClassLevels } : e);
+      }
+      return [...prev, {
+        studentId,
+        studentName,
+        classes: newClasses,
+        classLevels: currentClassLevels,
+        skillLevel: studentLevel,
+        updatedAt: Date.now(),
+        justifiedAbsence: false,
+        absenceReason: ''
+      }];
+    });
+
+    try {
+      await setDoc(doc(db, "enrollments", studentId), {
+        classes: newClasses,
+        classLevels: currentClassLevels,
+        skillLevel: studentLevel,
+        studentName,
+        justifiedAbsence: false,
+        absenceReason: null,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Professor (Admin)',
+        action: 'enrolled',
+        details: `Incluiu ${studentName} na turma ${className} (Esporte no Sábado)`,
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Erro ao incluir aluno no sábado", err);
+    }
+  };
+
+  const handleSaturdayAddMultipleStudentsToClass = async (studentIds: string[], classId: string) => {
+    const className = classes.find(c => c.id === classId)?.name || 'Turma';
+
+    // Optimistic updates
+    setEnrollments(prev => {
+      const next = [...prev];
+      for (const sId of studentIds) {
+        const st = students.find(s => s.id === sId);
+        const sName = st?.name || 'Aluno';
+        const existingIdx = next.findIndex(e => e.studentId === sId);
+        const sLevel = st?.skillLevel || 3;
+
+        if (existingIdx !== -1) {
+          const current = next[existingIdx];
+          if (!current.classes.includes(classId)) {
+            next[existingIdx] = {
+              ...current,
+              classes: [...current.classes, classId],
+              classLevels: { ...(current.classLevels || {}), [classId]: sLevel }
+            };
+          }
+        } else {
+          next.push({
+            studentId: sId,
+            studentName: sName,
+            classes: [classId],
+            classLevels: { [classId]: sLevel },
+            skillLevel: sLevel,
+            updatedAt: Date.now(),
+            justifiedAbsence: false,
+            absenceReason: ''
+          });
+        }
+      }
+      return next;
+    });
+
+    try {
+      const promises = studentIds.map(async (sId) => {
+        const st = students.find(s => s.id === sId);
+        const sName = st?.name || 'Aluno';
+        const existing = enrollments.find(e => e.studentId === sId);
+        const currentClasses = existing ? existing.classes : [];
+        if (currentClasses.includes(classId)) return;
+
+        const newClasses = [...currentClasses, classId];
+        const sLevel = existing?.skillLevel || st?.skillLevel || 3;
+        const currentClassLevels = { ...(existing?.classLevels || {}), [classId]: sLevel };
+
+        await setDoc(doc(db, "enrollments", sId), {
+          classes: newClasses,
+          classLevels: currentClassLevels,
+          skillLevel: sLevel,
+          studentName: sName,
+          justifiedAbsence: false,
+          absenceReason: null,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      });
+
+      await Promise.all(promises);
+
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Professor (Admin)',
+        action: 'enrolled',
+        details: `Incluiu ${studentIds.length} alunos na turma ${className} (Esporte no Sábado)`,
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Erro ao incluir múltiplos alunos no sábado", err);
+    }
+  };
+
+  const handleSaturdayRemoveParticipantFromClass = async (participant: Participant, classId: string) => {
+    const className = classes.find(c => c.id === classId)?.name || 'Turma';
+
+    try {
+      if (participant.studentId.startsWith('guest_admin_')) {
+        // Direct guest created by admin
+        const existing = enrollments.find(e => e.studentId === participant.studentId);
+        if (existing) {
+          const updatedClasses = existing.classes.filter(c => c !== classId);
+          if (updatedClasses.length === 0) {
+            await deleteDoc(doc(db, "enrollments", participant.studentId));
+            setEnrollments(prev => prev.filter(e => e.studentId !== participant.studentId));
+          } else {
+            await setDoc(doc(db, "enrollments", participant.studentId), {
+              classes: updatedClasses,
+              updatedAt: serverTimestamp()
+            }, { merge: true });
+            setEnrollments(prev => prev.map(e => e.studentId === participant.studentId ? { ...e, classes: updatedClasses } : e));
+          }
+        }
+      } else if (participant.isGuest && participant.guestIndex !== undefined) {
+        // Student guest
+        const existing = enrollments.find(e => e.studentId === participant.studentId);
+        if (existing && existing.guests?.[classId]) {
+          const newGuests = [...existing.guests[classId]];
+          newGuests.splice(participant.guestIndex, 1);
+          const newGuestMap = { ...existing.guests, [classId]: newGuests };
+          await setDoc(doc(db, "enrollments", participant.studentId), {
+            guests: newGuestMap,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+          setEnrollments(prev => prev.map(e => e.studentId === participant.studentId ? { ...e, guests: newGuestMap } : e));
+        }
+      } else {
+        // Regular student
+        const existing = enrollments.find(e => e.studentId === participant.studentId);
+        if (existing) {
+          const newClasses = existing.classes.filter(c => c !== classId);
+          await setDoc(doc(db, "enrollments", participant.studentId), {
+            classes: newClasses,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+          setEnrollments(prev => prev.map(e => e.studentId === participant.studentId ? { ...e, classes: newClasses } : e));
+        }
+      }
+
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Professor (Admin)',
+        action: 'unenrolled',
+        details: `Removeu "${participant.name}" da turma ${className} (Esporte no Sábado)`,
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Erro ao remover participante no sábado", err);
+    }
+  };
+
+  const handleSaturdayAddGuestToClass = async (classId: string, guestName: string, guestLevel: number) => {
+    const className = classes.find(c => c.id === classId)?.name || 'Turma';
+    const guestDocId = `guest_admin_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const clampedLevel = Math.max(1, Math.min(5, Math.round(guestLevel || 3)));
+
+    const newRecord: EnrollmentRecord = {
+      studentId: guestDocId,
+      studentName: guestName.trim(),
+      isGuest: true,
+      guestOf: 'Admin',
+      classes: [classId],
+      classLevels: { [classId]: clampedLevel },
+      skillLevel: clampedLevel,
+      updatedAt: Date.now(),
+      justifiedAbsence: false,
+      absenceReason: ''
+    };
+
+    // Optimistic update
+    setEnrollments(prev => [...prev, newRecord]);
+
+    try {
+      await setDoc(doc(db, "enrollments", guestDocId), {
+        studentId: guestDocId,
+        studentName: guestName.trim(),
+        isGuest: true,
+        guestOf: 'Admin',
+        classes: [classId],
+        classLevels: { [classId]: clampedLevel },
+        skillLevel: clampedLevel,
+        updatedAt: serverTimestamp()
+      });
+
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Professor (Admin)',
+        action: 'enrolled',
+        details: `Incluiu convidado "${guestName.trim()}" (${clampedLevel}★) na turma ${className} (Esporte no Sábado)`,
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Erro ao adicionar convidado no sábado", err);
     }
   };
 
@@ -1152,6 +1409,13 @@ export default function App() {
                     {enrollmentsLocked ? 'Desbloquear Inscrições' : 'Trancar Inscrições'}
                   </button>
                   <button 
+                    onClick={() => setSaturdaySportOpen(true)}
+                    className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs md:text-sm uppercase tracking-widest py-3 px-6 rounded-2xl flex items-center gap-2 transition-all shadow-[0_4px_16px_0_rgba(245,158,11,0.4)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    title="Inclusão direta de alunos e convidados para o sábado"
+                  >
+                    <span className="text-base">⚽</span> ESPORTE NO SÁBADO
+                  </button>
+                  <button 
                     onClick={() => {
                       const firstCls = classes.find(c => c.isOpen) || classes[0];
                       if (firstCls) setActiveDrawClassId(firstCls.id);
@@ -1207,9 +1471,18 @@ export default function App() {
                     <div className="w-1.5 h-6 bg-sky-500 rounded-full shadow-[0_0_10px_rgba(14,165,233,0.5)]"></div>
                     <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">Turmas & Modalidades</h2>
                   </div>
-                  <button onClick={addClass} className="h-10 px-4 bg-slate-800 hover:bg-sky-500/20 text-slate-300 hover:text-sky-400 hover:border-sky-500/30 border border-slate-700 rounded-xl flex items-center justify-center gap-2 transition-all text-xs font-bold uppercase tracking-widest">
-                    <Plus className="w-4 h-4" /> Nova
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => setSaturdaySportOpen(true)}
+                      className="h-10 px-3.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 hover:border-amber-500/50 border border-amber-500/30 rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs font-black uppercase tracking-wider shadow-sm"
+                    >
+                      <span>⚽</span> ESPORTE NO SÁBADO
+                    </button>
+                    <button onClick={addClass} className="h-10 px-4 bg-slate-800 hover:bg-sky-500/20 text-slate-300 hover:text-sky-400 hover:border-sky-500/30 border border-slate-700 rounded-xl flex items-center justify-center gap-2 transition-all text-xs font-bold uppercase tracking-widest">
+                      <Plus className="w-4 h-4" /> Nova
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -2347,6 +2620,12 @@ export default function App() {
                     <span>Painel Admin</span>
                   </button>
                   <button 
+                    onClick={() => setSaturdaySportOpen(true)}
+                    className="px-3.5 py-1.5 border border-amber-500/40 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span>⚽</span> ESPORTE NO SÁBADO
+                  </button>
+                  <button 
                     onClick={handleAdminLogout}
                     className="px-3 py-1.5 border border-slate-700 bg-slate-900/60 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
                     title="Sair do Modo Professor"
@@ -2562,7 +2841,7 @@ export default function App() {
                                             </span>
                                             {p.isGuest && (
                                               <span className="text-[10px] md:text-xs font-black text-amber-400 uppercase tracking-wide shrink-0">
-                                                (CONVIDADO DE {p.guestOf})
+                                                {p.guestOf && p.guestOf !== 'Admin' ? `(CONVIDADO DE ${p.guestOf})` : '(CONVIDADO)'}
                                               </span>
                                             )}
                                           </div>
@@ -2710,6 +2989,25 @@ export default function App() {
           participants={getClassParticipants(activeDrawClassId)}
           savedDraw={savedDraws[activeDrawClassId]}
           onSaveDraw={handleSaveDraw}
+        />
+      )}
+
+      {saturdaySportOpen && (
+        <SaturdaySportModal
+          isOpen={saturdaySportOpen}
+          onClose={() => setSaturdaySportOpen(false)}
+          classes={classes}
+          students={students}
+          participantsByClass={getClassParticipants}
+          activeDay={activeDay}
+          onSetActiveDay={handleSetActiveDay}
+          onAddStudentToClass={handleSaturdayAddStudentToClass}
+          onAddMultipleStudentsToClass={handleSaturdayAddMultipleStudentsToClass}
+          onRemoveParticipantFromClass={handleSaturdayRemoveParticipantFromClass}
+          onAddGuestToClass={handleSaturdayAddGuestToClass}
+          onUpdateParticipantLevel={handleAdminUpdateParticipantLevel}
+          onOpenDrawModal={(classId) => setActiveDrawClassId(classId)}
+          savedDraws={savedDraws}
         />
       )}
 

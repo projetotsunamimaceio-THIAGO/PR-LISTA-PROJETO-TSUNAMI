@@ -12,6 +12,9 @@ export interface Student {
 
 export interface EnrollmentRecord {
   studentId: string;
+  studentName?: string;
+  isGuest?: boolean;
+  guestOf?: string;
   classes: string[];
   classLevels?: Record<string, number>;
   guests?: Record<string, string[]>;
