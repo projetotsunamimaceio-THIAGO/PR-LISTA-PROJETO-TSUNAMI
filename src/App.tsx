@@ -1,5 +1,33 @@
 import { useState, useEffect, useRef, type ChangeEvent, type FormEvent } from "react";
-import { LogIn, Lock, ArrowLeft, Plus, Trash2, LogOut, RefreshCw, Search, X, Check, ShieldAlert, Save, Users, Shuffle, Scale, ArrowRight } from "lucide-react";
+import { 
+  LogIn, 
+  Lock, 
+  ArrowLeft, 
+  Plus, 
+  Trash2, 
+  LogOut, 
+  RefreshCw, 
+  Search, 
+  X, 
+  Check, 
+  ShieldAlert, 
+  Save, 
+  Users, 
+  Shuffle, 
+  Scale, 
+  ArrowRight,
+  Sparkles,
+  ChevronRight,
+  Activity,
+  Calendar,
+  Trophy,
+  AlertCircle,
+  ShieldCheck,
+  Flame,
+  CheckCircle2,
+  Sliders,
+  UserCheck
+} from "lucide-react";
 import { doc, setDoc, getDocs, deleteDoc, onSnapshot, collection, serverTimestamp, addDoc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "./lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1326,47 +1354,67 @@ export default function App() {
     transition: { duration: 0.3 }
   };
 
+  const openClassesCount = classes.filter(c => c.isOpen).length;
+  const totalCapacityCount = classes.filter(c => c.isOpen).reduce((acc, c) => acc + c.multiplier * 5, 0);
+  const totalEnrolledCount = classes.filter(c => c.isOpen).reduce((acc, c) => acc + getClassParticipants(c.id).length, 0);
+
   return (
-    <div className="min-h-screen bg-slate-950 font-sans text-slate-100 overflow-x-hidden selection:bg-sky-500/30">
+    <div className="min-h-screen bg-[#050913] text-slate-100 overflow-x-hidden selection:bg-cyan-400 selection:text-slate-950 font-sans relative">
+      {/* Ambient background glows */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 -right-32 w-[30rem] h-[30rem] bg-blue-600/10 rounded-full blur-[140px]" />
+        <div className="absolute -bottom-32 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[140px]" />
+      </div>
+
       <AnimatePresence mode="wait">
         
         {/* =========================================================================
             ADMIN LOGIN VIEW
         ========================================================================= */}
         {view === 'adminLogin' && (
-          <motion.div key="adminLogin" {...pageTransition} className="min-h-screen flex items-center justify-center p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-950/40 via-slate-950 to-slate-950">
-            <div className="w-full max-w-sm bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-8 shadow-2xl shadow-sky-900/10">
+          <motion.div key="adminLogin" {...pageTransition} className="min-h-screen flex items-center justify-center p-6 relative z-10">
+            <div className="w-full max-w-md glass-panel rounded-3xl p-8 md:p-10 shadow-2xl relative overflow-hidden border border-white/10">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-500" />
+              
               <button 
                 onClick={() => { setView('home'); setError(''); setPassword(''); }}
-                className="flex items-center gap-2 text-slate-400 hover:text-sky-400 transition-colors mb-8 text-xs font-bold uppercase tracking-wider"
+                className="inline-flex items-center gap-2 text-slate-400 hover:text-cyan-300 transition-colors mb-8 text-xs font-bold uppercase tracking-wider group"
               >
-                <ArrowLeft className="w-4 h-4" /> Voltar
+                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> Voltar ao Início
               </button>
               
               <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-sky-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-sky-500/20 shadow-[0_0_15px_rgba(14,165,233,0.2)]">
-                  <ShieldAlert className="w-6 h-6 text-sky-400" />
+                <div className="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.25)]">
+                  <ShieldCheck className="w-8 h-8 text-cyan-400" />
                 </div>
-                <h1 className="text-2xl font-black tracking-tight mb-2 text-white">Acesso Restrito</h1>
-                <p className="text-slate-400 text-sm">Área exclusiva da organização.</p>
+                <span className="text-[11px] font-black uppercase tracking-widest text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-3 py-1 rounded-full inline-block mb-3">
+                  Autenticação da Organização
+                </span>
+                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase">Acesso Restrito</h1>
+                <p className="text-slate-400 text-sm mt-1">Digite sua senha de administrador para gerenciar o Projeto Tsunami.</p>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-5">
                 <div>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Digite a senha"
-                    className="w-full bg-slate-950/50 border border-slate-700/50 rounded-2xl px-5 py-3.5 text-white text-center tracking-widest focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all placeholder:tracking-normal placeholder:text-slate-600"
-                  />
-                  {error && <p className="text-rose-500 text-xs font-bold text-center mt-3">{error}</p>}
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Senha do administrador"
+                      autoFocus
+                      className="w-full bg-slate-950/80 border border-slate-700/70 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 rounded-2xl pl-11 pr-4 py-4 text-white text-center tracking-widest text-sm focus:outline-none transition-all placeholder:tracking-normal placeholder:text-slate-600"
+                    />
+                  </div>
+                  {error && <p className="text-rose-400 text-xs font-bold text-center mt-3 bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">{error}</p>}
                 </div>
                 <button 
                   type="submit"
-                  className="w-full bg-gradient-to-r from-sky-500 to-sky-400 hover:from-sky-400 hover:to-sky-300 text-slate-950 font-black text-sm uppercase tracking-widest py-3.5 rounded-2xl transition-all shadow-[0_4px_14px_0_rgba(14,165,233,0.39)] hover:shadow-[0_6px_20px_rgba(14,165,233,0.23)] hover:-translate-y-0.5 active:translate-y-0"
+                  className="w-full bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-sm uppercase tracking-widest py-4 rounded-2xl transition-all shadow-[0_4px_20px_0_rgba(6,182,212,0.4)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Entrar no Painel
+                  <LogIn className="w-4 h-4" /> Entrar no Painel
                 </button>
               </form>
             </div>
@@ -1377,150 +1425,204 @@ export default function App() {
             ADMIN PANEL VIEW
         ========================================================================= */}
         {view === 'adminPanel' && (
-          <motion.div key="adminPanel" {...pageTransition} className="min-h-screen p-4 md:p-8 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-950/20 via-slate-950 to-slate-950">
-            <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <motion.div key="adminPanel" {...pageTransition} className="min-h-screen p-4 md:p-8 relative z-10">
+            <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
               
-              {/* Header (Left) */}
-              <div className="lg:col-span-8 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-black/20">
-                <div className="flex items-center gap-2 mb-3">
-                  <ShieldAlert className="w-4 h-4 text-sky-400" />
-                  <span className="text-sky-400 text-xs font-black uppercase tracking-widest">Painel Administrativo</span>
+              {/* Header (Left) - Cockpit */}
+              <div className="lg:col-span-8 glass-panel rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden border border-white/10 flex flex-col justify-between">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-teal-400 to-amber-400" />
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+                    <span className="text-cyan-400 text-xs font-black uppercase tracking-widest">Painel Administrativo & Gestão</span>
+                  </div>
+                  <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight mb-2 uppercase flex items-center gap-3">
+                    Gestão Tsunami
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 uppercase tracking-wider">PRO</span>
+                  </h1>
+                  <p className="text-slate-400 text-sm md:text-base mb-6 max-w-2xl leading-relaxed">
+                    Controle de turmas, vagas, permissões e sorteador de linhas de alta precisão.
+                  </p>
                 </div>
-                <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight mb-2 uppercase">
-                  Gestão Tsunami
-                </h1>
-                <p className="text-slate-400 text-sm md:text-base mb-8 max-w-2xl">
-                  Controle total sobre as turmas, vagas e liberações de alunos na plataforma.
-                </p>
-                <div className="flex flex-wrap gap-4">
+
+                {/* Primary Action Buttons */}
+                <div className="flex flex-wrap gap-3 pt-2">
                   <button 
                     onClick={handleSync}
                     disabled={isSyncing}
-                    className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-75 disabled:cursor-wait text-slate-950 font-black text-xs md:text-sm uppercase tracking-widest py-3 px-6 rounded-2xl flex items-center gap-2 transition-all shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:-translate-y-0.5 active:translate-y-0"
+                    className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-75 disabled:cursor-wait text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider py-3.5 px-5 rounded-2xl flex items-center gap-2 transition-all shadow-[0_4px_18px_0_rgba(16,185,129,0.35)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                   >
                     <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} /> 
                     {isSyncing ? 'Sincronizando...' : 'Sincronizar Planilha'}
                   </button>
+
                   <button 
                     onClick={toggleEnrollmentsLocked}
-                    className={`font-bold text-xs md:text-sm uppercase tracking-widest py-3 px-6 rounded-2xl flex items-center gap-2 transition-all ${enrollmentsLocked ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-[0_4px_14px_0_rgba(245,158,11,0.39)]' : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/50'}`}
+                    className={`font-black text-xs md:text-sm uppercase tracking-wider py-3.5 px-5 rounded-2xl flex items-center gap-2 transition-all cursor-pointer ${
+                      enrollmentsLocked 
+                        ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-[0_4px_18px_0_rgba(245,158,11,0.4)]' 
+                        : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/70'
+                    }`}
                   >
                     <Lock className="w-4 h-4" /> 
                     {enrollmentsLocked ? 'Desbloquear Inscrições' : 'Trancar Inscrições'}
                   </button>
+
                   <button 
                     onClick={() => setSaturdaySportOpen(true)}
-                    className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs md:text-sm uppercase tracking-widest py-3 px-6 rounded-2xl flex items-center gap-2 transition-all shadow-[0_4px_16px_0_rgba(245,158,11,0.4)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    className="bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider py-3.5 px-6 rounded-2xl flex items-center gap-2 transition-all shadow-[0_4px_20px_0_rgba(245,158,11,0.45)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                     title="Inclusão direta de alunos e convidados para o sábado"
                   >
                     <span className="text-base">⚽</span> ESPORTE NO SÁBADO
                   </button>
+
                   <button 
                     onClick={() => {
                       const firstCls = classes.find(c => c.isOpen) || classes[0];
                       if (firstCls) setActiveDrawClassId(firstCls.id);
                     }}
-                    className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs md:text-sm uppercase tracking-widest py-3 px-6 rounded-2xl flex items-center gap-2 transition-all shadow-[0_4px_14px_0_rgba(14,165,233,0.39)] hover:-translate-y-0.5 active:translate-y-0"
+                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider py-3.5 px-5 rounded-2xl flex items-center gap-2 transition-all shadow-[0_4px_18px_0_rgba(6,182,212,0.4)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                   >
                     <Shuffle className="w-4 h-4" /> Sorteador de Linhas
                   </button>
+
                   <button 
                     onClick={handleReset}
-                    className="bg-rose-950/30 border border-rose-900/50 hover:bg-rose-900/50 hover:border-rose-700 text-rose-400 font-bold text-xs md:text-sm uppercase tracking-widest py-3 px-6 rounded-2xl flex items-center gap-2 transition-all"
+                    className="bg-rose-950/40 border border-rose-900/60 hover:bg-rose-900/50 hover:border-rose-600 text-rose-300 font-bold text-xs md:text-sm uppercase tracking-wider py-3.5 px-5 rounded-2xl flex items-center gap-2 transition-all cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" /> Resetar Inscrições
                   </button>
                 </div>
               </div>
 
-              {/* Header (Right) */}
-              <div className="lg:col-span-4 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 md:p-8 flex flex-col justify-between shadow-xl shadow-black/20">
-                <div className="flex flex-wrap items-center justify-between gap-3">
+              {/* Header (Right) - Stats & Mode Switch */}
+              <div className="lg:col-span-4 glass-panel rounded-3xl p-6 md:p-8 flex flex-col justify-between shadow-2xl border border-white/10 relative overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-white/10">
                   <button 
                     onClick={() => setView('home')} 
-                    className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 hover:border-amber-500/50 font-black text-xs uppercase tracking-wider px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm"
+                    className="bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/40 hover:border-amber-400/60 font-black text-xs uppercase tracking-wider px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-sm cursor-pointer"
                     title="Ver Página Inicial com o Modo Professor Ativo para alterar níveis dos alunos"
                   >
-                    <span>Página Inicial (Modo Professor)</span>
+                    <span>👀 Ver Página Inicial</span>
                   </button>
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={handleAdminLogout} 
-                      className="w-10 h-10 bg-slate-800/50 rounded-xl flex items-center justify-center hover:bg-rose-950/50 hover:text-rose-400 text-slate-400 transition-colors border border-slate-700/50 hover:border-rose-900/50"
+                      className="w-10 h-10 bg-slate-800/80 rounded-xl flex items-center justify-center hover:bg-rose-950/60 hover:text-rose-400 text-slate-400 transition-colors border border-slate-700/70 hover:border-rose-800 cursor-pointer"
                       title="Sair do Modo Administrador"
                     >
                       <LogOut className="w-4 h-4" />
                     </button>
-                    <span className="text-slate-500 text-xs font-bold uppercase tracking-widest">Sair</span>
+                    <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Sair</span>
                   </div>
                 </div>
-                <div className="mt-8">
-                  <div className="text-sky-400 text-5xl md:text-6xl font-black tracking-tighter leading-none mb-2">
-                    {totalStudents}
+
+                {/* Modern Metrics Grid */}
+                <div className="grid grid-cols-2 gap-3 mt-6">
+                  <div className="bg-slate-950/60 border border-white/5 rounded-2xl p-4 flex flex-col">
+                    <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                      <Users className="w-3 h-3 text-cyan-400" /> Alunos Base
+                    </span>
+                    <div className="text-cyan-400 text-3xl md:text-4xl font-black tracking-tight leading-none mt-auto">
+                      {totalStudents}
+                    </div>
                   </div>
-                  <div className="text-slate-400 text-xs font-bold uppercase tracking-widest">
-                    Alunos na Base
+
+                  <div className="bg-slate-950/60 border border-white/5 rounded-2xl p-4 flex flex-col">
+                    <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                      <Calendar className="w-3 h-3 text-emerald-400" /> Turmas Abertas
+                    </span>
+                    <div className="text-emerald-400 text-3xl md:text-4xl font-black tracking-tight leading-none mt-auto">
+                      {openClassesCount} <span className="text-xs text-slate-500 font-bold">/ {classes.length}</span>
+                    </div>
+                  </div>
+
+                  <div className="col-span-2 bg-gradient-to-r from-slate-950/80 via-slate-900/60 to-slate-950/80 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                    <div>
+                      <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest block mb-1">
+                        Inscritos na Semana
+                      </span>
+                      <span className="text-white font-black text-xl">
+                        {totalEnrolledCount} <span className="text-slate-400 text-xs font-bold">de {totalCapacityCount} vagas</span>
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                        {totalCapacityCount > 0 ? Math.round((totalEnrolledCount / totalCapacityCount) * 100) : 0}% Ocupado
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Left Column (Turmas) */}
               <div className="lg:col-span-7 space-y-6">
-                <div className="flex justify-between items-center px-2 mt-4 lg:mt-0">
+                <div className="flex justify-between items-center px-1 mt-4 lg:mt-0">
                   <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-6 bg-sky-500 rounded-full shadow-[0_0_10px_rgba(14,165,233,0.5)]"></div>
-                    <h2 className="text-lg md:text-xl font-bold text-white tracking-tight">Turmas & Modalidades</h2>
+                    <div className="w-1.5 h-6 bg-cyan-400 rounded-full shadow-[0_0_12px_rgba(6,182,212,0.6)]" />
+                    <h2 className="text-lg md:text-xl font-black text-white tracking-tight uppercase">Turmas & Modalidades</h2>
                   </div>
                   <div className="flex items-center gap-2">
                     <button 
                       type="button"
                       onClick={() => setSaturdaySportOpen(true)}
-                      className="h-10 px-3.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 hover:border-amber-500/50 border border-amber-500/30 rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs font-black uppercase tracking-wider shadow-sm"
+                      className="h-10 px-3.5 bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 hover:border-amber-400/60 border border-amber-400/35 rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs font-black uppercase tracking-wider shadow-sm cursor-pointer"
                     >
                       <span>⚽</span> ESPORTE NO SÁBADO
                     </button>
-                    <button onClick={addClass} className="h-10 px-4 bg-slate-800 hover:bg-sky-500/20 text-slate-300 hover:text-sky-400 hover:border-sky-500/30 border border-slate-700 rounded-xl flex items-center justify-center gap-2 transition-all text-xs font-bold uppercase tracking-widest">
-                      <Plus className="w-4 h-4" /> Nova
+                    <button onClick={addClass} className="h-10 px-4 bg-slate-800/90 hover:bg-cyan-500/20 text-slate-200 hover:text-cyan-300 hover:border-cyan-500/40 border border-slate-700/80 rounded-xl flex items-center justify-center gap-2 transition-all text-xs font-bold uppercase tracking-wider cursor-pointer">
+                      <Plus className="w-4 h-4" /> Nova Turma
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   {classes.map(cls => (
-                    <motion.div layout key={cls.id} className="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-lg shadow-black/10">
+                    <motion.div layout key={cls.id} className="glass-panel rounded-3xl p-6 shadow-xl border border-white/10 relative overflow-hidden transition-all hover:border-cyan-500/30">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4 gap-4">
-                        <input 
-                          type="text"
-                          value={cls.name}
-                          onChange={(e) => updateClassName(cls.id, e.target.value)}
-                          className="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-sky-500 focus:outline-none text-xl md:text-2xl font-black text-white uppercase tracking-tight w-full px-0 py-1 transition-colors"
-                          placeholder="NOME DA TURMA"
-                        />
+                        <div className="flex-1">
+                          <input 
+                            type="text"
+                            value={cls.name}
+                            onChange={(e) => updateClassName(cls.id, e.target.value)}
+                            className="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-cyan-400 focus:outline-none text-xl md:text-2xl font-black text-white uppercase tracking-tight w-full px-0 py-1 transition-colors"
+                            placeholder="NOME DA TURMA"
+                          />
+                        </div>
                         <button 
                           onClick={() => toggleClassStatus(cls.id)}
-                          className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all shrink-0 ${cls.isOpen ? 'bg-emerald-500 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}
+                          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
+                            cls.isOpen 
+                              ? 'bg-emerald-400 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.35)]' 
+                              : 'bg-slate-800 text-slate-400 border border-slate-700'
+                          }`}
                         >
                           {cls.isOpen ? 'Ativa / Aberta' : 'Fechada'}
                         </button>
                       </div>
+                      
                       <input 
                         type="text"
                         value={cls.description}
                         onChange={(e) => updateClassDescription(cls.id, e.target.value)}
-                        className="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-sky-500 focus:outline-none text-sky-200/70 text-sm mb-6 w-full px-0 py-1 transition-colors"
-                        placeholder="Ex: Quinta até 12h..."
+                        className="bg-transparent border-b border-transparent hover:border-slate-700 focus:border-cyan-400 focus:outline-none text-slate-400 hover:text-slate-200 focus:text-slate-100 text-sm mb-6 w-full px-0 py-1 transition-colors"
+                        placeholder="Ex: Horário a definir... quinta até 12h"
                       />
                       
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
-                        <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">
-                          Multiplicador (x5 vagas)
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6 bg-slate-950/50 p-3.5 rounded-2xl border border-white/5">
+                        <span className="text-slate-400 text-[11px] font-black uppercase tracking-wider shrink-0">
+                          Multiplicador (x5 vagas):
                         </span>
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
                             <button 
                               key={num}
                               onClick={() => setMultiplier(cls.id, num)}
-                              className={`w-9 h-9 rounded-xl text-sm font-bold flex items-center justify-center transition-all ${cls.multiplier === num ? 'bg-sky-500 text-slate-950 shadow-[0_0_10px_rgba(14,165,233,0.4)]' : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700'}`}
+                              className={`w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center transition-all cursor-pointer ${
+                                cls.multiplier === num 
+                                  ? 'bg-cyan-400 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.45)]' 
+                                  : 'bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-white'
+                              }`}
                             >
                               {num}
                             </button>
@@ -1528,10 +1630,10 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="flex justify-between items-center border-t border-slate-800/80 pt-5 mt-2">
+                      <div className="flex justify-between items-center border-t border-white/10 pt-4 mt-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-sky-400 text-sm font-black tracking-widest">
-                            TOTAL: {cls.multiplier * 5} VAGAS
+                          <span className="text-cyan-400 text-sm font-black tracking-wide">
+                            {cls.multiplier * 5} VAGAS TOTAIS
                           </span>
                           {(() => {
                             let count = 0;
@@ -1541,26 +1643,26 @@ export default function App() {
                               count += gList.length;
                             });
                             return (
-                              <span className="text-[11px] font-bold text-slate-300 bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-700/50">
+                              <span className="text-[11px] font-bold text-slate-300 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-white/10">
                                 {count} inscritos
                               </span>
                             );
                           })()}
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <button 
                             type="button"
                             onClick={() => setActiveDrawClassId(cls.id)}
-                            className="bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 hover:border-sky-500/50 font-black text-xs uppercase tracking-wider px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all"
+                            className="bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 hover:border-cyan-500/50 font-black text-xs uppercase tracking-wider px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
                           >
-                            <Shuffle className="w-3.5 h-3.5 text-sky-400" />
+                            <Shuffle className="w-3.5 h-3.5 text-cyan-400" />
                             {savedDraws[cls.id] ? `Linhas (${savedDraws[cls.id].teams.length} times)` : 'Sortear'}
                           </button>
                           <button 
                             onClick={() => removeClass(cls.id)}
-                            className="text-rose-500/70 hover:text-rose-400 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-1"
+                            className="text-rose-400 hover:text-rose-300 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1 px-2.5 py-2 rounded-xl hover:bg-rose-950/40 cursor-pointer"
                           >
-                            <Trash2 className="w-3 h-3" /> Excluir
+                            <Trash2 className="w-3.5 h-3.5" /> Excluir
                           </button>
                         </div>
                       </div>
@@ -1573,16 +1675,17 @@ export default function App() {
               <div className="lg:col-span-5 space-y-6">
                 
                 {/* Configs Card */}
-                <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-lg shadow-black/10">
+                <div className="glass-panel rounded-3xl p-6 shadow-xl border border-white/10">
                   <div className="mb-6 flex justify-between items-start gap-4">
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-cyan-400" />
                           Dia da Semana (Agenda Ativa)
                         </h3>
                         {daySavedSuccess && (
-                          <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                            <Check className="w-3 h-3" /> Salvo no sistema!
+                          <span className="text-[10px] text-emerald-300 font-bold bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-400" /> Salvo no sistema!
                           </span>
                         )}
                       </div>
@@ -1595,10 +1698,10 @@ export default function App() {
                             type="button"
                             onClick={() => handleSetActiveDay(day)}
                             disabled={isSavingDay}
-                            className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all text-center border ${
+                            className={`py-2 px-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all text-center border cursor-pointer ${
                               activeDay === day 
-                                ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.35)] scale-[1.02]' 
-                                : 'bg-slate-800/60 text-slate-300 border-slate-700/60 hover:bg-slate-700 hover:text-white'
+                                ? 'bg-cyan-400 text-slate-950 border-cyan-300 shadow-[0_0_14px_rgba(6,182,212,0.45)] scale-[1.02]' 
+                                : 'bg-slate-900/80 text-slate-300 border-white/10 hover:bg-slate-800 hover:text-white'
                             }`}
                           >
                             {day}
@@ -1614,69 +1717,77 @@ export default function App() {
                           onChange={(e) => setActiveDay(e.target.value.toUpperCase())}
                           placeholder="Ou digite o dia/horário..."
                           maxLength={35}
-                          className="flex-1 bg-slate-950/60 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors"
+                          className="flex-1 bg-slate-950/80 border border-slate-700/80 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20 rounded-xl px-3.5 py-2.5 text-xs text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none transition-colors"
                         />
                         <button
                           type="button"
                           onClick={() => handleSetActiveDay(activeDay)}
                           disabled={isSavingDay}
-                          className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-colors shrink-0 flex items-center gap-1.5 shadow-sm"
+                          className="px-4 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 shadow-[0_2px_10px_rgba(6,182,212,0.3)] cursor-pointer"
                         >
                           <Save className="w-3.5 h-3.5" /> Salvar
                         </button>
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-2">
-                        Dia exibido na página inicial: <strong className="text-sky-300 uppercase">{activeDay}</strong>
+                      <p className="text-[11px] text-slate-400 mt-2.5 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                        Dia ativo na página inicial: <strong className="text-cyan-300 uppercase tracking-wide">{activeDay}</strong>
                       </p>
                     </div>
                   </div>
 
-                  <div className="mb-6">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">
+                  <div className="mb-6 pt-4 border-t border-white/10">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+                      <Trophy className="w-3.5 h-3.5 text-amber-400" />
                       Logo do Projeto
                     </h3>
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-full bg-slate-950/50 border border-slate-700/50 flex items-center justify-center overflow-hidden shrink-0">
+                      <div className="w-16 h-16 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
                         {logoUrl ? (
                           <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-slate-600 text-[10px] font-bold uppercase">SEM LOGO</span>
+                          <span className="text-cyan-400 text-[11px] font-black uppercase tracking-widest">SEM LOGO</span>
                         )}
                       </div>
                       <div className="flex-1">
-                        <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase tracking-widest py-2 px-4 rounded-xl transition-colors inline-block text-center border border-slate-700/50 w-full">
-                          Alterar Logo
+                        <label className="cursor-pointer bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all inline-block text-center border border-white/10 hover:border-cyan-500/30 w-full shadow-sm">
+                          Alterar Imagem da Logo
                           <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
                         </label>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-2 text-center md:text-left">
-                          Formatos: JPG, PNG
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1.5 text-center md:text-left">
+                          Formatos aceitos: JPG, PNG, WEBP
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mb-6">
+                  <div className="mb-6 pt-4 border-t border-white/10">
                     <div className="flex justify-between items-center mb-3">
-                       <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                       <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                         <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
                          Justificativa de Ausência
                        </h3>
                     </div>
                     <button 
                       onClick={toggleAbsenceJustification}
-                      className={`w-full font-bold text-xs uppercase tracking-widest py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all ${absenceJustificationOpen ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-[0_4px_14px_0_rgba(16,185,129,0.39)]' : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/50'}`}
+                      className={`w-full font-black text-xs uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        absenceJustificationOpen 
+                          ? 'bg-emerald-400 hover:bg-emerald-300 text-slate-950 shadow-[0_4px_14px_0_rgba(16,185,129,0.35)]' 
+                          : 'bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-white/10'
+                      }`}
                     >
-                      {absenceJustificationOpen ? 'Botão de Justificar: ABERTO' : 'Botão de Justificar: FECHADO'}
+                      {absenceJustificationOpen ? '✓ Botão de Justificar: ABERTO' : '✕ Botão de Justificar: FECHADO'}
                     </button>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-2 text-center">Permite que o aluno avise que não vai treinar</p>
+                    <p className="text-[11px] text-slate-400 mt-2 text-center">Permite que o aluno avise e justifique que não vai poder treinar</p>
                   </div>
                   
-                  <div>
+                  <div className="pt-4 border-t border-white/10">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                        Quadro de Avisos
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                        Quadro de Avisos da Página Inicial
                       </h3>
                       {noticeSavedSuccess && (
-                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
                           <Check className="w-3.5 h-3.5" /> Salvo!
                         </span>
                       )}
@@ -1694,17 +1805,17 @@ export default function App() {
                         handleSaveNotice(notice);
                       }}
                       placeholder="Digite o aviso para os alunos..."
-                      className="w-full bg-slate-950/50 border border-slate-700/50 rounded-2xl p-4 text-sm text-sky-100 resize-none h-28 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all leading-relaxed"
+                      className="w-full bg-slate-950/80 border border-white/10 rounded-2xl p-4 text-sm text-cyan-100 placeholder:text-slate-600 resize-none h-28 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all leading-relaxed"
                     />
                     <button
                       id="save-notice-btn"
                       type="button"
                       onClick={() => handleSaveNotice(notice)}
                       disabled={isSavingNotice}
-                      className={`mt-2 w-full font-bold text-xs uppercase tracking-widest py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all ${
+                      className={`mt-2 w-full font-black text-xs uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
                         noticeSavedSuccess
                           ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                          : 'bg-sky-600 hover:bg-sky-500 text-white shadow-[0_4px_14px_0_rgba(2,132,199,0.39)] active:scale-[0.99]'
+                          : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-[0_4px_14px_0_rgba(6,182,212,0.35)]'
                       }`}
                     >
                       {isSavingNotice ? (
@@ -1724,17 +1835,17 @@ export default function App() {
                         </>
                       )}
                     </button>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1.5 text-center">
-                      Salva automaticamente ao sair do campo ou clicando no botão
+                    <p className="text-[10px] text-slate-400 mt-2 text-center">
+                      Salva automaticamente ao sair do campo ou clicando no botão acima
                     </p>
                   </div>
                 </div>
 
                 {/* Justificativas Recebidas */}
-                <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-lg shadow-black/10">
-                  <div className="flex items-center gap-2 mb-6">
-                    <div className="w-1.5 h-5 bg-rose-500 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]"></div>
-                    <h3 className="text-lg font-black text-white tracking-tight">Justificativas</h3>
+                <div className="glass-panel rounded-3xl p-6 shadow-xl border border-white/10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1.5 h-5 bg-rose-400 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]" />
+                    <h3 className="text-base md:text-lg font-black text-white tracking-tight uppercase">Justificativas de Ausência</h3>
                   </div>
                   
                   <div className="space-y-3 max-h-[350px] overflow-y-auto custom-scrollbar pr-2">
@@ -1745,8 +1856,8 @@ export default function App() {
                         
                       if (justifiedEnrollments.length === 0) {
                         return (
-                          <div className="text-center py-8 bg-slate-950/50 rounded-2xl border border-slate-800">
-                            <p className="text-slate-500 text-sm uppercase tracking-widest font-bold">Nenhuma recebida.</p>
+                          <div className="text-center py-8 bg-slate-950/60 rounded-2xl border border-white/5">
+                            <p className="text-slate-400 text-xs uppercase tracking-wider font-bold">Nenhuma ausência justificada até o momento.</p>
                           </div>
                         );
                       }
@@ -1754,16 +1865,16 @@ export default function App() {
                       return justifiedEnrollments.map(enrollment => {
                         const st = students.find(s => s.id === enrollment.studentId);
                         return (
-                          <div key={enrollment.studentId} className="bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl flex flex-col gap-2">
+                          <div key={enrollment.studentId} className="bg-slate-950/70 border border-rose-500/25 p-4 rounded-2xl flex flex-col gap-2">
                             <div className="flex justify-between items-center">
-                              <span className="text-slate-200 text-xs md:text-sm font-black uppercase tracking-widest">
+                              <span className="text-rose-200 text-xs md:text-sm font-black uppercase tracking-wider">
                                 {st?.name || 'Aluno Desconhecido'}
                               </span>
                             </div>
-                            <p className="text-rose-400 text-sm font-medium bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
+                            <p className="text-rose-300 text-sm font-medium bg-rose-950/40 p-3 rounded-xl border border-rose-500/20 leading-relaxed">
                               {enrollment.absenceReason || 'Nenhuma justificativa escrita.'}
                             </p>
-                            <span className="text-[10px] text-slate-500 font-mono text-right">
+                            <span className="text-[10px] text-slate-400 font-mono text-right">
                               {new Date(enrollment.updatedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
@@ -1776,48 +1887,48 @@ export default function App() {
                 {/* Liberação de Alunos */}
                 <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col h-[550px] shadow-lg shadow-black/10">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                    <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
-                      <div className="w-1.5 h-5 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                      Acessos
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                      <h3 className="text-base md:text-lg font-black text-white tracking-tight uppercase">Controle de Alunos & Acessos</h3>
+                    </div>
                     <div className="flex gap-2 w-full sm:w-auto">
-                      <button onClick={allowAllStudents} className="flex-1 sm:flex-none px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors text-center">
+                      <button onClick={allowAllStudents} className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center cursor-pointer">
                         Liberar Todos
                       </button>
-                      <button onClick={blockAllStudents} className="flex-1 sm:flex-none px-3 py-2 bg-rose-900/20 hover:bg-rose-900/40 text-rose-400 border border-rose-900/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors text-center">
+                      <button onClick={blockAllStudents} className="flex-1 sm:flex-none px-3.5 py-2 bg-rose-950/40 hover:bg-rose-900/40 text-rose-300 border border-rose-900/50 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center cursor-pointer">
                         Bloquear Todos
                       </button>
                     </div>
                   </div>
                   
-                  <div className="relative mb-6 shrink-0">
-                    <Search className="w-4 h-4 absolute left-4 top-3.5 text-slate-500" />
+                  <div className="relative mb-5 shrink-0">
+                    <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input 
                       type="text" 
-                      placeholder="Pesquisar por nome..." 
+                      placeholder="Pesquisar aluno por nome..." 
                       value={studentSearch}
                       onChange={(e) => setStudentSearch(e.target.value)}
-                      className="w-full bg-slate-950/50 border border-slate-700/50 rounded-2xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-sky-500 transition-colors"
+                      className="w-full bg-slate-950/80 border border-white/10 rounded-2xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
                     />
                   </div>
 
-                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-3 space-y-3">
+                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
                     {students.length === 0 ? (
                       <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 p-4">
                         <p className="text-sm">Nenhum aluno sincronizado ainda.</p>
                       </div>
                     ) : (
                       filteredStudents.map(student => (
-                        <div key={student.id} className={`border rounded-2xl p-4 flex flex-col gap-3 transition-colors ${student.isAllowed ? 'bg-slate-800/40 border-slate-700/50' : 'bg-rose-950/10 border-rose-900/30'}`}>
+                        <div key={student.id} className={`border rounded-2xl p-4 flex flex-col gap-3 transition-colors ${student.isAllowed ? 'bg-slate-950/70 border-white/10 hover:border-cyan-500/30' : 'bg-rose-950/20 border-rose-900/40'}`}>
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
                               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                <h4 className={`font-bold text-sm tracking-tight uppercase line-clamp-1 ${student.isAllowed ? 'text-white' : 'text-rose-200/50'}`} title={student.name}>
+                                <h4 className={`font-black text-sm tracking-tight uppercase line-clamp-1 ${student.isAllowed ? 'text-white' : 'text-rose-300/60'}`} title={student.name}>
                                   {student.name}
                                 </h4>
                                 
                                 {/* 1-Click Star Selector for Professor */}
-                                <div className="flex items-center gap-1 bg-slate-950/90 border border-amber-500/30 px-2 py-0.5 rounded-lg w-fit">
+                                <div className="flex items-center gap-1 bg-slate-900/90 border border-amber-400/30 px-2 py-0.5 rounded-lg w-fit">
                                   <span className="text-[9px] font-black uppercase text-amber-400 mr-0.5">
                                     Nível:
                                   </span>
@@ -1847,18 +1958,18 @@ export default function App() {
                                   </span>
                                 </div>
                               </div>
-                              <p className="text-slate-500 text-[10px] mt-1 font-mono">SENHA: {student.password}</p>
+                              <p className="text-slate-400 text-[10px] mt-1 font-mono">SENHA: {student.password}</p>
                             </div>
-                            <div className="flex bg-slate-950 rounded-xl p-1 gap-1 shrink-0 border border-slate-800/80">
+                            <div className="flex bg-slate-900 rounded-xl p-1 gap-1 shrink-0 border border-white/10">
                               <button 
                                 onClick={() => toggleStudentAllowed(student.id, true)}
-                                className={`px-5 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${student.isAllowed ? 'bg-emerald-500 text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                                className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${student.isAllowed ? 'bg-emerald-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
                               >
                                 Liberar
                               </button>
                               <button 
                                 onClick={() => toggleStudentAllowed(student.id, false)}
-                                className={`px-5 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${!student.isAllowed ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                                className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${!student.isAllowed ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
                               >
                                 Bloquear
                               </button>
@@ -1866,19 +1977,19 @@ export default function App() {
                           </div>
                           
                           {student.isAllowed && (
-                            <div className="pt-3 border-t border-slate-700/50 flex flex-col gap-2">
-                              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Turmas Permitidas:</p>
-                              <div className="flex flex-wrap gap-2">
+                            <div className="pt-3 border-t border-white/10 flex flex-col gap-2">
+                              <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider">Turmas Permitidas:</p>
+                              <div className="flex flex-wrap gap-1.5">
                                 {classes.map(c => {
                                    const isChecked = student.allowedClasses ? student.allowedClasses.includes(c.id) : true;
                                    return (
                                      <button 
                                        key={c.id} 
                                        onClick={() => toggleStudentAllowedClass(student.id, c.id)}
-                                       className={`px-3 py-1.5 border rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-2 ${isChecked ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-950 text-slate-500 border-slate-800'}`}
+                                       className={`px-2.5 py-1 border rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer ${isChecked ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-900 text-slate-500 border-white/5'}`}
                                      >
-                                       <div className={`w-3 h-3 rounded-sm flex items-center justify-center border ${isChecked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600'}`}>
-                                         {isChecked && <Check className="w-2 h-2 text-slate-900" />}
+                                       <div className={`w-3 h-3 rounded-sm flex items-center justify-center border ${isChecked ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'}`}>
+                                         {isChecked && <Check className="w-2 h-2 text-slate-950 font-bold" />}
                                        </div>
                                        {c.name}
                                      </button>
@@ -1894,49 +2005,49 @@ export default function App() {
                 </div>
 
                 {/* Avaliação de Comportamento */}
-                <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col h-[600px] shadow-lg shadow-black/10">
-                  <div className="flex items-center gap-2 mb-6">
-                    <div className="w-1.5 h-5 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>
-                    <h3 className="text-lg font-black text-white tracking-tight">Comportamento</h3>
+                <div className="glass-panel rounded-3xl p-6 flex flex-col h-[600px] shadow-xl border border-white/10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1.5 h-5 bg-amber-400 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                    <h3 className="text-base md:text-lg font-black text-white tracking-tight uppercase">Avaliação de Conduta & Punições</h3>
                   </div>
 
-                  <div className="relative mb-6 shrink-0">
-                    <Search className="w-4 h-4 absolute left-4 top-3.5 text-slate-500" />
+                  <div className="relative mb-4 shrink-0">
+                    <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input 
                       type="text" 
-                      placeholder="Pesquisar aluno..." 
+                      placeholder="Pesquisar aluno por nome..." 
                       value={behaviorSearchInput}
                       onChange={(e) => setBehaviorSearchInput(e.target.value)}
-                      className="w-full bg-slate-950/50 border border-slate-700/50 rounded-2xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"
+                      className="w-full bg-slate-950/80 border border-white/10 rounded-2xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-amber-400 transition-colors"
                     />
                   </div>
 
-                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-3 space-y-3">
+                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
                     {students.filter(s => s.isAllowed && s.name.toLowerCase().includes(behaviorSearchInput.toLowerCase())).map(student => (
-                      <div key={student.id} className="border border-slate-700/50 rounded-2xl p-4 bg-slate-800/40 flex flex-col gap-3">
+                      <div key={student.id} className="border border-white/10 rounded-2xl p-4 bg-slate-950/70 flex flex-col gap-3">
                         <div className="flex justify-between items-center cursor-pointer" onClick={() => setSelectedBehaviorStudentId(selectedBehaviorStudentId === student.id ? null : student.id)}>
-                          <h4 className="font-bold text-sm tracking-tight uppercase text-white line-clamp-1">{student.name}</h4>
-                          <div className={`px-3 py-1 rounded-lg text-xs font-black ${(student.behaviorScore ?? 10) >= 7 ? 'bg-emerald-500/20 text-emerald-400' : (student.behaviorScore ?? 10) >= 4 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                          <h4 className="font-black text-sm tracking-tight uppercase text-white line-clamp-1">{student.name}</h4>
+                          <div className={`px-3 py-1 rounded-xl text-xs font-black ${(student.behaviorScore ?? 10) >= 7 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : (student.behaviorScore ?? 10) >= 4 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}`}>
                             Nota: {student.behaviorScore ?? 10}
                           </div>
                         </div>
 
                         {selectedBehaviorStudentId === student.id && (
-                          <div className="pt-3 border-t border-slate-700/50 mt-1 flex flex-col gap-2">
-                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Aplicar Punição:</p>
-                            <div className="flex flex-wrap gap-2">
-                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 1, 'Conversando')} className="px-3 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-900/50 rounded-lg text-[10px] font-black uppercase transition-all">-1 Conversando</button>
-                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 2, 'Conversando Muito')} className="px-3 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-900/50 rounded-lg text-[10px] font-black uppercase transition-all">-2 Conversando Muito</button>
-                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 1, 'Brincadeira')} className="px-3 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-900/50 rounded-lg text-[10px] font-black uppercase transition-all">-1 Brincadeira</button>
-                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 2, 'Celular')} className="px-3 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-900/50 rounded-lg text-[10px] font-black uppercase transition-all">-2 Celular</button>
-                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 1, 'Sem Atenção')} className="px-3 py-1.5 bg-slate-950 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-900/50 rounded-lg text-[10px] font-black uppercase transition-all">-1 Sem Atenção</button>
+                          <div className="pt-3 border-t border-white/10 mt-1 flex flex-col gap-2">
+                            <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider">Aplicar Penalidade:</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 1, 'Conversando')} className="px-3 py-1.5 bg-slate-900 hover:bg-rose-950/50 text-slate-300 hover:text-rose-300 border border-white/10 hover:border-rose-900/50 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer">-1 Conversando</button>
+                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 2, 'Conversando Muito')} className="px-3 py-1.5 bg-slate-900 hover:bg-rose-950/50 text-slate-300 hover:text-rose-300 border border-white/10 hover:border-rose-900/50 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer">-2 Conversando Muito</button>
+                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 1, 'Brincadeira')} className="px-3 py-1.5 bg-slate-900 hover:bg-rose-950/50 text-slate-300 hover:text-rose-300 border border-white/10 hover:border-rose-900/50 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer">-1 Brincadeira</button>
+                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 2, 'Celular')} className="px-3 py-1.5 bg-slate-900 hover:bg-rose-950/50 text-slate-300 hover:text-rose-300 border border-white/10 hover:border-rose-900/50 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer">-2 Celular</button>
+                              <button onClick={() => handleApplyBehaviorPenalty(student.id, 1, 'Sem Atenção')} className="px-3 py-1.5 bg-slate-900 hover:bg-rose-950/50 text-slate-300 hover:text-rose-300 border border-white/10 hover:border-rose-900/50 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer">-1 Sem Atenção</button>
                             </div>
                             
                             {student.infractions && student.infractions.length > 0 && (
-                               <div className="mt-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-                                 <p className="text-[9px] uppercase font-bold text-rose-400 tracking-widest mb-1.5">Histórico de Punições:</p>
-                                 <p className="text-[10px] text-rose-200/80 mb-3">{student.infractions.join(', ')}</p>
-                                 <button onClick={() => handleResetBehavior(student.id)} className="w-full px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                               <div className="mt-2 p-3 bg-rose-950/30 border border-rose-500/25 rounded-2xl">
+                                 <p className="text-[10px] uppercase font-black text-rose-300 tracking-wider mb-1.5">Histórico de Punições:</p>
+                                 <p className="text-[11px] text-rose-200/90 mb-3">{student.infractions.join(', ')}</p>
+                                 <button onClick={() => handleResetBehavior(student.id)} className="w-full px-3 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer">
                                    Restaurar Nota 10
                                  </button>
                                </div>
@@ -1950,41 +2061,55 @@ export default function App() {
               </div>
 
               {/* Activity Logs (Full Width) */}
-              <div className="lg:col-span-12 bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl shadow-black/20 mt-4">
+              <div className="lg:col-span-12 glass-panel rounded-3xl p-6 md:p-8 shadow-2xl border border-white/10 mt-2">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-1.5 h-6 bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div>
-                  <h2 className="text-lg md:text-xl font-bold text-white tracking-tight uppercase">Histórico de Atividades</h2>
+                  <div className="w-1.5 h-6 bg-purple-400 rounded-full shadow-[0_0_12px_rgba(168,85,247,0.6)]" />
+                  <h2 className="text-lg md:text-xl font-black text-white tracking-tight uppercase flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-purple-400" />
+                    Histórico & Auditoria de Atividades
+                  </h2>
                 </div>
                 
                 {activityLogs.length === 0 ? (
-                  <div className="text-center py-8 bg-slate-950/50 rounded-2xl border border-slate-800">
-                    <p className="text-slate-500 text-sm uppercase tracking-widest font-bold">Nenhuma atividade recente.</p>
+                  <div className="text-center py-8 bg-slate-950/60 rounded-2xl border border-white/5">
+                    <p className="text-slate-400 text-sm uppercase tracking-wider font-bold">Nenhuma atividade recente registrada.</p>
                   </div>
                 ) : (
-                  <div className="bg-slate-950/50 rounded-2xl border border-slate-800/80 p-4 md:p-6 space-y-3">
+                  <div className="bg-slate-950/70 rounded-2xl border border-white/10 p-4 md:p-6 space-y-3">
                     {activityLogs.map(log => {
                       const date = new Date(log.timestamp);
                       const dateString = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
                       const timeString = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                       
-                      let actionText = '';
+                      let badgeColor = 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
+                      let badgeLabel = 'AÇÃO';
+
                       if (log.action === 'enrolled') {
-                        actionText = `se inscreveu no ${log.details.replace('Inscreveu-se em: ', '')}`;
+                        badgeColor = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+                        badgeLabel = 'INSCRIÇÃO';
                       } else if (log.action === 'unenrolled') {
-                        actionText = 'retirou o nome de todas as turmas';
+                        badgeColor = 'bg-rose-500/15 text-rose-300 border-rose-500/30';
+                        badgeLabel = 'CANCELOU';
                       } else if (log.action === 'changed') {
-                        if (log.details.includes('Alterou')) {
-                          actionText = `alterou a inscrição para ${log.details.replace('Alterou inscrição para: ', '')}`;
-                        } else {
-                          actionText = 'salvou a inscrição';
-                        }
+                        badgeColor = 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+                        badgeLabel = 'ALTEROU';
                       } else if (log.action === 'justified') {
-                        actionText = `justificou ausência: "${log.details.replace('Justificou ausência: ', '')}"`;
+                        badgeColor = 'bg-purple-500/15 text-purple-300 border-purple-500/30';
+                        badgeLabel = 'JUSTIFICOU';
                       }
 
                       return (
-                        <div key={log.id} className="text-sm md:text-base font-medium text-slate-300 border-b border-slate-800/50 pb-3 last:border-0 last:pb-0">
-                          <span className="font-bold text-sky-400">{log.studentName}</span> - {actionText} , as {timeString} de {dateString};
+                        <div key={log.id} className="text-xs md:text-sm font-medium text-slate-300 border-b border-white/5 pb-3 last:border-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${badgeColor} shrink-0`}>
+                              {badgeLabel}
+                            </span>
+                            <span className="font-black text-white">{log.studentName}</span>
+                            <span className="text-slate-400">— {log.details}</span>
+                          </div>
+                          <span className="text-[11px] font-mono text-slate-500 shrink-0">
+                            {timeString} · {dateString}
+                          </span>
                         </div>
                       );
                     })}
@@ -2000,91 +2125,112 @@ export default function App() {
             STUDENT FLOW VIEW
         ========================================================================= */}
         {view === 'studentFlow' && (
-          <motion.div key="studentFlow" {...pageTransition} className="min-h-screen flex flex-col items-center justify-center p-4 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-blue-950/30 via-slate-950 to-slate-950">
+          <motion.div key="studentFlow" {...pageTransition} className="min-h-screen flex flex-col items-center justify-center p-4 relative z-10">
             
             {studentStep === 1 && (
               <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
-                <div className="text-center mb-8">
-                  <span className="inline-block px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black tracking-widest uppercase mb-4">Passo 01 de 03</span>
-                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-2 text-white">Quem é você?</h1>
-                  <p className="text-sky-200/60 text-sm">Pesquise e selecione seu nome na lista.</p>
+                <div className="text-center mb-6">
+                  <span className="inline-block px-3.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 text-[10px] font-black tracking-widest uppercase mb-3">
+                    Passo 01 de 03 • Identificação
+                  </span>
+                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">Quem é você?</h1>
+                  <p className="text-slate-400 text-sm mt-1">Busque e selecione seu nome na lista oficial do Projeto Tsunami.</p>
                 </div>
                 
-                <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col">
+                <div className="w-full glass-panel rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col border border-white/10">
                   <div className="relative mb-5 shrink-0">
-                    <Search className="w-5 h-5 absolute left-4 top-3.5 text-slate-500" />
+                    <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input 
                       type="text" 
-                      placeholder="Qual o seu nome?" 
+                      placeholder="Digite seu nome para buscar..." 
                       value={studentSearchInput}
                       onChange={(e) => setStudentSearchInput(e.target.value)}
-                      className="w-full bg-slate-950/60 border border-slate-700/50 rounded-2xl pl-12 pr-4 py-3.5 text-base text-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors"
+                      autoFocus
+                      className="w-full bg-slate-950/80 border border-white/10 rounded-2xl pl-12 pr-10 py-3.5 text-base text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
                     />
+                    {studentSearchInput && (
+                      <button 
+                        type="button" 
+                        onClick={() => setStudentSearchInput('')}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                   
-                  {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mb-4 p-2 bg-rose-500/10 rounded-lg">{studentFlowError}</p>}
+                  {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mb-4 p-2 bg-rose-500/10 border border-rose-500/20 rounded-xl">{studentFlowError}</p>}
                   
-                  <div className="flex-1 max-h-[350px] overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                  <div className="flex-1 max-h-[360px] overflow-y-auto custom-scrollbar pr-2 space-y-2">
                     {students
                       .filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase()))
                       .map(s => (
                       <button 
                         key={s.id}
                         onClick={() => handleSelectStudent(s.id)}
-                        className="w-full text-left bg-slate-800/40 hover:bg-sky-500/10 border border-slate-700/50 hover:border-sky-500/30 rounded-2xl p-4 transition-all hover:pl-6"
+                        className="w-full text-left bg-slate-950/60 hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/40 rounded-2xl p-4 transition-all hover:translate-x-1 flex items-center justify-between group cursor-pointer"
                       >
-                        <span className="text-sm font-black uppercase tracking-tight text-slate-200">{s.name}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-black text-xs flex items-center justify-center shrink-0 uppercase">
+                            {s.name.charAt(0)}
+                          </div>
+                          <span className="text-sm font-black uppercase tracking-tight text-slate-200 group-hover:text-white">{s.name}</span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition-colors" />
                       </button>
                     ))}
                     {students.filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase())).length === 0 && (
-                       <p className="text-center text-slate-500 text-sm py-8">Nenhum nome encontrado.</p>
+                       <p className="text-center text-slate-400 text-sm py-8">Nenhum atleta encontrado com este nome.</p>
                     )}
                   </div>
                 </div>
 
                 <button 
                   onClick={() => setView('home')}
-                  className="mt-8 text-slate-500 hover:text-rose-400 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2"
+                  className="mt-6 text-slate-400 hover:text-rose-400 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2 cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4" /> Cancelar e Voltar
+                  <ArrowLeft className="w-4 h-4" /> Cancelar e Voltar ao Início
                 </button>
               </motion.div>
             )}
 
             {studentStep === 2 && (
               <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
-                <div className="text-center mb-8">
-                  <span className="inline-block px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black tracking-widest uppercase mb-4">Passo 02 de 03</span>
-                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-4 text-white">Segurança</h1>
-                  <div className="inline-block px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl">
-                    <p className="text-sky-300 text-xs md:text-sm uppercase font-black tracking-widest">
+                <div className="text-center mb-6">
+                  <span className="inline-block px-3.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 text-[10px] font-black tracking-widest uppercase mb-3">
+                    Passo 02 de 03 • Confirmação
+                  </span>
+                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">Sua Senha</h1>
+                  <div className="inline-block px-4 py-2 bg-slate-900/80 border border-cyan-500/30 rounded-2xl mt-2">
+                    <p className="text-cyan-300 text-xs md:text-sm uppercase font-black tracking-wider">
                       {students.find(s => s.id === selectedStudentId)?.name}
                     </p>
                   </div>
                 </div>
                 
-                <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col gap-6">
+                <div className="w-full glass-panel rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col gap-6 border border-white/10">
                   <div>
                     <input 
                       type="password"
                       value={studentPasswordInput}
                       onChange={(e) => setStudentPasswordInput(e.target.value)}
                       placeholder="DIGITE SUA SENHA"
-                      className="w-full bg-slate-950/60 border border-slate-700/50 rounded-2xl px-6 py-4 text-center text-lg font-black tracking-widest uppercase text-white focus:outline-none focus:border-sky-500 transition-colors"
+                      autoFocus
+                      className="w-full bg-slate-950/80 border border-white/10 rounded-2xl px-6 py-4 text-center text-lg font-black tracking-widest uppercase text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors placeholder:text-slate-600 placeholder:tracking-normal"
                     />
-                    {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mt-3 bg-rose-500/10 py-2 rounded-lg">{studentFlowError}</p>}
+                    {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mt-3 bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">{studentFlowError}</p>}
                   </div>
                   
-                  <div className="flex flex-col sm:flex-row gap-3 mt-2">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <button 
                       onClick={() => setStudentStep(1)}
-                      className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-colors"
+                      className="flex-1 bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-black text-xs md:text-sm uppercase tracking-wider py-4 rounded-2xl transition-all cursor-pointer"
                     >
                       Voltar
                     </button>
                     <button 
-                      onClick={handleValidatePassword}
-                      className="flex-1 bg-gradient-to-r from-sky-500 to-sky-400 hover:from-sky-400 hover:to-sky-300 text-slate-950 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-all shadow-[0_4px_14px_0_rgba(14,165,233,0.39)]"
+                      onClick={() => handleValidatePassword('enrollment')}
+                      className="flex-1 bg-gradient-to-r from-cyan-400 to-sky-500 hover:from-cyan-300 hover:to-sky-400 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider py-4 rounded-2xl transition-all shadow-[0_4px_16px_0_rgba(6,182,212,0.35)] cursor-pointer"
                     >
                       Validar Senha
                     </button>
@@ -2094,18 +2240,20 @@ export default function App() {
             )}
 
             {studentStep === 3 && (
-              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
+              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-xl flex flex-col items-center">
                 <div className="text-center mb-6">
-                  <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black tracking-widest uppercase mb-3">Passo Final</span>
-                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-2 text-white">Inscrição & Convidados</h1>
-                  <div className="inline-block px-4 py-1.5 bg-slate-800/60 border border-slate-700/70 rounded-xl">
-                    <p className="text-sky-300 text-xs uppercase font-black tracking-widest">
+                  <span className="inline-block px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-black tracking-widest uppercase mb-3">
+                    Passo Final • Escolha suas Atividades
+                  </span>
+                  <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">Inscrição & Convidados</h1>
+                  <div className="inline-block px-4 py-1.5 bg-slate-900/80 border border-cyan-500/30 rounded-2xl mt-1.5">
+                    <p className="text-cyan-300 text-xs uppercase font-black tracking-wider">
                       {students.find(s => s.id === selectedStudentId)?.name}
                     </p>
                   </div>
                 </div>
                 
-                <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col">
+                <div className="w-full glass-panel rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col border border-white/10">
                   {(() => {
                     const student = students.find(s => s.id === selectedStudentId);
                     const studentName = student?.name || 'Aluno';
@@ -2120,8 +2268,8 @@ export default function App() {
 
                     if (availableClasses.length === 0) {
                       return (
-                        <div className="text-center py-10 bg-slate-950/50 rounded-2xl border border-slate-800">
-                          <p className="text-slate-500 text-sm uppercase tracking-widest font-bold">Nenhuma turma disponível no momento.</p>
+                        <div className="text-center py-10 bg-slate-950/60 rounded-2xl border border-white/5">
+                          <p className="text-slate-400 text-sm uppercase tracking-wider font-bold">Nenhuma turma aberta para inscrição no momento.</p>
                         </div>
                       );
                     }
@@ -2129,30 +2277,29 @@ export default function App() {
                     return (
                       <>
                         {/* AVISO: NÍVEL DEFINIDO EXCLUSIVAMENTE PELO PROFESSOR */}
-                        <div className="bg-slate-950/80 border border-sky-500/30 rounded-2xl p-4 mb-5 shadow-lg flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center text-xl shrink-0">
+                        <div className="bg-slate-950/80 border border-cyan-500/30 rounded-2xl p-4 mb-5 shadow-lg flex items-start gap-3.5">
+                          <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 flex items-center justify-center text-xl shrink-0">
                             ⭐
                           </div>
                           <div className="flex-1">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
-                              <span className="text-xs font-black uppercase tracking-wider text-sky-300">
-                                Nível de Jogo & Estrelas (Definido pelo Professor)
+                              <span className="text-xs font-black uppercase tracking-wider text-cyan-300">
+                                Nível & Equilíbrio de Times
                               </span>
-                              <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md w-fit">
-                                Apenas o Professor
+                              <span className="text-[10px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md w-fit">
+                                Avaliado pelo Professor
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-400 leading-relaxed">
-                              Para manter os sorteios de times justos e perfeitamente equilibrados, o nível de estrelas dos atletas e convidados é avaliado e definido <strong className="text-white">exclusivamente pelo Professor</strong> do projeto.
+                              O nível de jogo é definido pelo <strong className="text-white">Professor</strong> para garantir sorteios justos e equilibrados em cada turma.
                             </p>
-                            {/* Mostra o nível atual já atribuído pelo professor */}
                             {(() => {
                               const existingLevel = student?.skillLevel || enrollments.find(e => e.studentId === selectedStudentId)?.skillLevel;
                               if (existingLevel) {
                                 return (
-                                  <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center gap-2">
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                      Seu nível avaliado pelo professor:
+                                  <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center gap-2">
+                                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider">
+                                      Seu nível atribuído:
                                     </span>
                                     <span className="text-xs font-mono text-amber-300 font-bold bg-slate-900 border border-amber-500/30 px-2.5 py-0.5 rounded-lg">
                                       {getSkillStars(existingLevel)} ({existingLevel}★)
@@ -2166,19 +2313,19 @@ export default function App() {
                         </div>
 
                         {/* Selector Tabs: Turmas vs Inserir Convidado */}
-                        <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-950/80 rounded-2xl border border-slate-800 mb-6">
+                        <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-950/80 rounded-2xl border border-white/10 mb-6">
                           <button
                             type="button"
                             onClick={() => setEnrollmentSubTab('classes')}
-                            className={`py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                            className={`py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
                               enrollmentSubTab === 'classes'
-                                ? 'bg-emerald-500 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+                                ? 'bg-emerald-400 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.35)]'
                                 : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
                             }`}
                           >
-                            <span>Turmas</span>
+                            <span>Minhas Turmas</span>
                             {selectedClasses.length > 0 && (
-                              <span className="bg-slate-950 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                              <span className="bg-slate-950 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
                                 {selectedClasses.length}
                               </span>
                             )}
@@ -2192,9 +2339,9 @@ export default function App() {
                                 setGuestClassId(selectedClasses[0] || availableClasses[0].id);
                               }
                             }}
-                            className={`py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                            className={`py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
                               enrollmentSubTab === 'guests'
-                                ? 'bg-amber-500 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                                ? 'bg-amber-400 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.35)]'
                                 : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
                             }`}
                           >
@@ -2212,21 +2359,19 @@ export default function App() {
                         {enrollmentSubTab === 'classes' && (
                           <div className="flex-1 max-h-[380px] overflow-y-auto custom-scrollbar pr-2 space-y-3 mb-6">
                             <p className="text-xs text-slate-400 mb-3">
-                              Selecione as turmas em que você vai participar e ajuste seu nível se desejar:
+                              Marque as turmas em que você vai participar esta semana:
                             </p>
                             {availableClasses.map(c => {
                               const isSelected = selectedClasses.includes(c.id);
                               const classGuests = (selectedGuests[c.id] || []).filter(g => g.trim().length > 0).slice(0, 2);
-                              const currentLvl = selectedStudentLevels[c.id] || selectedStudentLevel || 3;
-                              const currentOpt = SKILL_LEVEL_OPTIONS.find(o => o.level === currentLvl);
 
                               return (
                                 <div 
                                   key={c.id} 
                                   className={`rounded-2xl transition-all border p-4 md:p-5 ${
                                     isSelected 
-                                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)]' 
-                                      : 'bg-slate-800/40 border-slate-700/50 hover:border-slate-500 text-slate-300'
+                                      ? 'bg-emerald-500/10 border-emerald-400 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.18)]' 
+                                      : 'bg-slate-950/60 border-white/10 hover:border-white/20 text-slate-300'
                                   }`}
                                 >
                                   <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleStudentClass(c.id)}>
@@ -2234,43 +2379,31 @@ export default function App() {
                                       <span className="text-sm md:text-base font-black uppercase tracking-tight">
                                         {c.name}
                                       </span>
-                                      <p className={`text-xs mt-1 ${isSelected ? 'text-emerald-500/70' : 'text-slate-500'}`}>
+                                      <p className={`text-xs mt-1 ${isSelected ? 'text-emerald-400/80' : 'text-slate-400'}`}>
                                         {c.description}
                                       </p>
                                     </div>
                                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${
-                                      isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'
+                                      isSelected ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'
                                     }`}>
-                                      {isSelected && <Check className="w-3.5 h-3.5 text-slate-950" />}
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-slate-950 font-bold" />}
                                     </div>
                                   </div>
 
-                                  {/* Exibição de nível definido pelo professor */}
-                                  {isSelected && (
-                                    <div className="mt-3 pt-3 border-t border-emerald-500/20 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300">
-                                        Nível nesta turma (definido pelo professor):
-                                      </span>
-                                      <span className="text-xs text-amber-300 font-mono font-bold bg-slate-950 px-2.5 py-0.5 rounded-lg border border-emerald-500/30">
-                                        {getSkillStars(student?.classLevels?.[c.id] || student?.skillLevel || 3)}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  <div className="mt-3 pt-3 border-t border-slate-700/40 flex items-center justify-between">
+                                  <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
                                     <button
                                       type="button"
                                       onClick={() => {
                                         setGuestClassId(c.id);
                                         setEnrollmentSubTab('guests');
                                       }}
-                                      className="text-[11px] font-bold text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1.5 uppercase tracking-wide"
+                                      className="text-[11px] font-bold text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1.5 uppercase tracking-wide cursor-pointer"
                                     >
                                       <Users className="w-3.5 h-3.5" />
                                       {classGuests.length > 0 ? `+ Gerenciar convidados (${classGuests.length})` : '+ Inserir Convidado nesta turma'}
                                     </button>
                                     {isSelected && (
-                                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
                                         Você inscrito
                                       </span>
                                     )}
@@ -2285,7 +2418,7 @@ export default function App() {
                         {enrollmentSubTab === 'guests' && (
                           <div className="flex-1 max-h-[380px] overflow-y-auto custom-scrollbar pr-2 space-y-4 mb-6">
                             <div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
                                 1. Selecione a turma do convidado:
                               </span>
                               <div className="flex flex-wrap gap-2">
@@ -2297,10 +2430,10 @@ export default function App() {
                                       key={c.id}
                                       type="button"
                                       onClick={() => setGuestClassId(c.id)}
-                                      className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border ${
+                                      className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border cursor-pointer ${
                                         isCurrent
-                                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
-                                          : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:border-slate-500'
+                                          ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.35)]'
+                                          : 'bg-slate-950/70 text-slate-300 border-white/10 hover:border-white/20'
                                       }`}
                                     >
                                       <span>{c.name}</span>
@@ -2318,23 +2451,23 @@ export default function App() {
                             </div>
 
                             {activeGuestClass && (
-                              <div className="bg-slate-950/70 border border-amber-500/40 rounded-2xl p-4 md:p-5 shadow-lg space-y-4">
-                                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                              <div className="bg-slate-950/80 border border-amber-400/30 rounded-2xl p-4 md:p-5 shadow-lg space-y-4">
+                                <div className="flex items-center justify-between pb-3 border-b border-white/10">
                                   <div>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block">
-                                      Turma onde vai aparecer:
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
+                                      Turma do Convidado:
                                     </span>
                                     <h4 className="text-base md:text-lg font-black text-white uppercase tracking-tight">
                                       {activeGuestClass.name}
                                     </h4>
                                   </div>
-                                  <span className="text-[10px] font-black text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg uppercase tracking-wider shrink-0">
+                                  <span className="text-[10px] font-black text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-lg uppercase tracking-wider shrink-0">
                                     Máx. 2 convidados
                                   </span>
                                 </div>
 
                                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                                  Insira os convidados para <strong className="text-white">{activeGuestClass.name}</strong>. Na lista oficial, eles aparecerão com outra cor identificados como <strong className="text-amber-300 font-bold">(CONVIDADO DE {studentName})</strong> e apenas as estrelas do nível.
+                                  Insira os convidados para <strong className="text-white">{activeGuestClass.name}</strong>. Na lista oficial, eles aparecerão como <strong className="text-amber-300 font-bold">(CONVIDADO DE {studentName})</strong>.
                                 </p>
 
                                 <div className="space-y-4">
@@ -2350,7 +2483,7 @@ export default function App() {
                                         value={selectedGuests[activeGuestClass.id]?.[0] || ''}
                                         onChange={(e) => handleGuestChange(activeGuestClass.id, 0, e.target.value)}
                                         maxLength={50}
-                                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+                                        className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
                                       />
                                       {selectedGuests[activeGuestClass.id]?.[0] && (
                                         <button
@@ -2365,19 +2498,16 @@ export default function App() {
                                     </div>
 
                                     {selectedGuests[activeGuestClass.id]?.[0]?.trim() && (
-                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                                        <span>
+                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/25 rounded-xl p-2.5 mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                      <span>
                                           Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][0].trim()} (CONVIDADO DE {studentName})</strong>
-                                        </span>
-                                        <span className="text-[9px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 uppercase shrink-0 w-fit">
-                                          Nível avaliado pelo professor
                                         </span>
                                       </div>
                                     )}
                                   </div>
 
                                   {/* Convidado 2 */}
-                                  <div className="space-y-2 pt-3 border-t border-slate-900">
+                                  <div className="space-y-2 pt-3 border-t border-white/10">
                                     <label className="text-[10px] font-black uppercase tracking-wider text-slate-300">
                                       2º Convidado:
                                     </label>
@@ -2388,7 +2518,7 @@ export default function App() {
                                         value={selectedGuests[activeGuestClass.id]?.[1] || ''}
                                         onChange={(e) => handleGuestChange(activeGuestClass.id, 1, e.target.value)}
                                         maxLength={50}
-                                        className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+                                        className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
                                       />
                                       {selectedGuests[activeGuestClass.id]?.[1] && (
                                         <button
@@ -2403,12 +2533,9 @@ export default function App() {
                                     </div>
 
                                     {selectedGuests[activeGuestClass.id]?.[1]?.trim() && (
-                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/25 rounded-xl p-2.5 mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                                         <span>
                                           Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][1].trim()} (CONVIDADO DE {studentName})</strong>
-                                        </span>
-                                        <span className="text-[9px] font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 uppercase shrink-0 w-fit">
-                                          Nível avaliado pelo professor
                                         </span>
                                       </div>
                                     )}
@@ -2420,9 +2547,9 @@ export default function App() {
                         )}
 
                         {/* Summary of selections */}
-                        <div className="bg-slate-950/40 rounded-xl p-3 mb-4 border border-slate-800 text-[11px] text-slate-400 flex flex-col gap-2">
+                        <div className="bg-slate-950/70 rounded-2xl p-4 mb-4 border border-white/10 text-xs text-slate-400 flex flex-col gap-2">
                           <div className="flex justify-between items-center">
-                            <span>Suas turmas selecionadas:</span>
+                            <span>Turmas selecionadas:</span>
                             <strong className="text-emerald-400 uppercase">
                               {selectedClasses.length > 0 
                                 ? selectedClasses.map(cid => classes.find(c => c.id === cid)?.name).filter(Boolean).join(", ")
@@ -2430,15 +2557,9 @@ export default function App() {
                             </strong>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span>Convidados adicionados:</span>
+                            <span>Convidados inseridos:</span>
                             <strong className="text-amber-400">
                               {totalGuestsCount > 0 ? `${totalGuestsCount} convidado(s)` : "Nenhum"}
-                            </strong>
-                          </div>
-                          <div className="flex justify-between items-center pt-1 border-t border-slate-800/60 text-[10px] text-slate-500">
-                            <span>Nível & Estrelas:</span>
-                            <strong className="text-amber-300 font-medium">
-                              Definido Exclusivamente pelo Professor
                             </strong>
                           </div>
                         </div>
@@ -2446,20 +2567,20 @@ export default function App() {
                     );
                   })()}
 
-                  {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mb-4 bg-rose-500/10 py-2 rounded-lg">{studentFlowError}</p>}
+                  {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mb-4 bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">{studentFlowError}</p>}
 
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button 
                       onClick={() => setStudentStep(2)}
-                      className="sm:w-1/3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-colors"
+                      className="sm:w-1/3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-black text-xs md:text-sm uppercase tracking-wider py-4 rounded-2xl transition-all cursor-pointer"
                     >
                       Voltar
                     </button>
                     <button 
                       onClick={handleFinishEnrollment}
-                      className="sm:w-2/3 bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-slate-950 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-all shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:-translate-y-0.5"
+                      className="sm:w-2/3 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider py-4 rounded-2xl transition-all shadow-[0_4px_20px_0_rgba(16,185,129,0.35)] cursor-pointer"
                     >
-                      Concluir Inscrição
+                      Concluir Inscrição ✓
                     </button>
                   </div>
                 </div>
@@ -2472,24 +2593,27 @@ export default function App() {
             JUSTIFICATION FLOW VIEW
         ========================================================================= */}
         {view === 'justificationFlow' && (
-          <motion.div key="justificationFlow" {...pageTransition} className="min-h-screen flex items-center justify-center p-4 md:p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-950/40 via-slate-950 to-slate-950">
+          <motion.div key="justificationFlow" {...pageTransition} className="min-h-screen flex items-center justify-center p-4 md:p-6 relative z-10">
             {justificationStep === 1 && (
               <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
-                <div className="text-center mb-8">
-                  <span className="inline-block px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black tracking-widest uppercase mb-4">Passo 01 de 03</span>
-                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-2 text-white">Justificar</h1>
-                  <p className="text-slate-400 text-sm">Selecione o seu nome na lista.</p>
+                <div className="text-center mb-6">
+                  <span className="inline-block px-3.5 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 text-[10px] font-black tracking-widest uppercase mb-3">
+                    Passo 01 de 03 • Ausência
+                  </span>
+                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">Justificar Falta</h1>
+                  <p className="text-slate-400 text-sm mt-1">Selecione seu nome para enviar sua justificativa à organização.</p>
                 </div>
                 
-                <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col">
-                  <div className="relative mb-6">
+                <div className="w-full glass-panel rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col border border-white/10">
+                  <div className="relative mb-5 shrink-0">
                     <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input 
                       type="text"
-                      placeholder="BUSCAR NOME..."
+                      placeholder="Pesquise seu nome..."
                       value={studentSearchInput}
                       onChange={(e) => setStudentSearchInput(e.target.value)}
-                      className="w-full bg-slate-950/50 border border-slate-700/50 rounded-2xl pl-12 pr-4 py-4 text-sm font-bold tracking-widest uppercase text-white focus:outline-none focus:border-rose-500 transition-colors"
+                      autoFocus
+                      className="w-full bg-slate-950/80 border border-white/10 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold uppercase text-white focus:outline-none focus:border-rose-400 transition-colors"
                     />
                   </div>
 
@@ -2498,16 +2622,17 @@ export default function App() {
                       <button 
                         key={s.id}
                         onClick={() => handleSelectStudent(s.id, 'justification')}
-                        className="w-full text-left bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/50 hover:border-rose-500/50 rounded-xl p-4 transition-all"
+                        className="w-full text-left bg-slate-950/60 hover:bg-rose-950/30 border border-white/5 hover:border-rose-500/40 rounded-2xl p-4 transition-all hover:translate-x-1 flex items-center justify-between cursor-pointer"
                       >
                         <span className="text-sm font-black uppercase tracking-tight text-slate-200">{s.name}</span>
+                        <ChevronRight className="w-4 h-4 text-slate-600" />
                       </button>
                     ))}
                     {students.filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase())).length === 0 && (
-                       <p className="text-center text-slate-500 text-sm py-8">Nenhum nome encontrado.</p>
+                       <p className="text-center text-slate-400 text-sm py-8">Nenhum atleta encontrado.</p>
                     )}
                   </div>
-                  {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mt-4 bg-rose-500/10 py-2 rounded-lg">{studentFlowError}</p>}
+                  {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mt-4 bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">{studentFlowError}</p>}
                 </div>
 
                 <button 
@@ -2605,111 +2730,177 @@ export default function App() {
             HOME VIEW
         ========================================================================= */}
         {view === 'home' && (
-          <motion.div key="home" {...pageTransition} className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-950/30 via-slate-950 to-slate-950 flex flex-col items-center p-4 md:p-8">
-            <div className="w-full max-w-md md:max-w-xl absolute top-4 md:left-8 md:top-8 z-10 flex flex-wrap items-center gap-2 justify-center md:justify-start">
-              {isAdmin ? (
-                <>
-                  <div className="px-3.5 py-1.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-sm shadow-amber-500/10">
-                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                    <span>Modo Professor (Admin)</span>
+          <motion.div key="home" {...pageTransition} className="min-h-screen bg-[#050913] bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(14,165,233,0.18),rgba(2,6,23,0))] flex flex-col items-center p-4 sm:p-6 md:p-8">
+            
+            {/* Top Navigation Bar */}
+            <header className="w-full max-w-4xl flex flex-wrap items-center justify-between gap-3 mb-6 md:mb-8 pt-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 p-0.5 shadow-[0_0_15px_rgba(14,165,233,0.4)]">
+                  <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center overflow-hidden">
+                    {logoUrl ? (
+                      <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-cyan-300 font-black text-sm">TS</span>
+                    )}
                   </div>
-                  <button 
-                    onClick={() => setView('adminPanel')}
-                    className="px-3.5 py-1.5 border border-sky-500/40 bg-sky-950/60 text-sky-300 hover:bg-sky-500/20 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5"
-                  >
-                    <span>Painel Admin</span>
-                  </button>
-                  <button 
-                    onClick={() => setSaturdaySportOpen(true)}
-                    className="px-3.5 py-1.5 border border-amber-500/40 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 rounded-full text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 shadow-sm"
-                  >
-                    <span>⚽</span> ESPORTE NO SÁBADO
-                  </button>
-                  <button 
-                    onClick={handleAdminLogout}
-                    className="px-3 py-1.5 border border-slate-700 bg-slate-900/60 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 rounded-full text-[10px] font-black uppercase tracking-widest transition-all"
-                    title="Sair do Modo Professor"
-                  >
-                    Sair
-                  </button>
-                </>
-              ) : (
-                <button 
-                  onClick={() => setAdminQuickLoginOpen(true)}
-                  className="px-5 py-2.5 border border-slate-700/50 bg-slate-900/50 backdrop-blur text-slate-400 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-sky-500/10 hover:text-sky-400 hover:border-sky-500/30 transition-all text-center flex items-center gap-2"
-                >
-                  <Lock className="w-3 h-3" /> Área Restrita
-                </button>
-              )}
-            </div>
-
-            <div className="w-full max-w-md md:max-w-xl space-y-6 mt-20 md:mt-24 relative z-0 pb-12">
-              
-              {/* Card 1: Header */}
-              <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-[2rem] p-6 md:p-8 shadow-2xl shadow-sky-900/5">
-                <div className="flex justify-between items-start mb-8">
-                  <div>
-                    <span className="inline-block px-3 py-1 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
-                      Agenda: {activeDay}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-black text-sm tracking-wider uppercase">Projeto Tsunami</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Ao Vivo
                     </span>
-                    <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight leading-none">
-                      PRÉ-INSCRIÇÕES<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-sky-200">TSUNAMI</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">Inscrições & Sorteio de Linhas</span>
+                </div>
+              </div>
+
+              {/* Header Right Controls */}
+              <div className="flex flex-wrap items-center gap-2">
+                {isAdmin ? (
+                  <>
+                    <div className="px-3 py-1.5 bg-amber-500/15 border border-amber-500/40 text-amber-300 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                      <span>Professor</span>
+                    </div>
+
+                    <button 
+                      type="button"
+                      onClick={() => setSaturdaySportOpen(true)}
+                      className="px-3.5 py-1.5 border border-amber-500/50 bg-gradient-to-r from-amber-500/25 to-amber-600/25 hover:from-amber-500/40 hover:to-amber-600/40 text-amber-200 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(245,158,11,0.25)] hover:scale-105 active:scale-95 cursor-pointer"
+                    >
+                      <span>⚽</span>
+                      <span>ESPORTE NO SÁBADO</span>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => setView('adminPanel')}
+                      className="px-3.5 py-1.5 border border-sky-500/40 bg-sky-950/60 text-sky-300 hover:bg-sky-500/20 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>Painel Admin</span>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={handleAdminLogout}
+                      className="px-3 py-1.5 border border-slate-700 bg-slate-900/60 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                      title="Sair do Modo Professor"
+                    >
+                      Sair
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    type="button"
+                    onClick={() => setAdminQuickLoginOpen(true)}
+                    className="px-4 py-2 border border-slate-700/60 bg-slate-900/60 hover:bg-slate-800/80 text-slate-300 hover:text-sky-300 hover:border-sky-500/40 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Área do Professor</span>
+                  </button>
+                )}
+              </div>
+            </header>
+
+            {/* Main Content Column */}
+            <main className="w-full max-w-xl space-y-6 pb-16">
+              
+              {/* Card 1: Hero Header */}
+              <div className="relative overflow-hidden bg-slate-900/70 backdrop-blur-2xl border border-slate-800/80 rounded-[2.25rem] p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-600/10 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="relative z-10 flex justify-between items-start gap-4 mb-6">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-sky-500/10 border border-sky-500/25 text-sky-400 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
+                      <Calendar className="w-3 h-3" />
+                      Agenda: {activeDay}
+                    </div>
+                    <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none uppercase">
+                      PRÉ-INSCRIÇÕES<br/>
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-400">
+                        PROJETO TSUNAMI
+                      </span>
                     </h1>
                   </div>
-                  <div className="w-14 h-14 md:w-20 md:h-20 rounded-full flex items-center justify-center shrink-0 overflow-hidden bg-slate-950/50 border border-slate-800">
+
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center shrink-0 overflow-hidden bg-slate-950/80 border border-slate-700/60 shadow-[0_0_20px_rgba(14,165,233,0.2)]">
                     {logoUrl ? (
                       <img src={logoUrl} alt="Tsunami Logo" className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-white font-black text-xl md:text-2xl">TS</span>
+                      <span className="text-white font-black text-2xl tracking-tighter">TS</span>
                     )}
                   </div>
                 </div>
                 
-                <div className="bg-sky-950/30 border border-sky-900/50 rounded-2xl p-5 mb-6 shadow-inner relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-sky-500"></div>
-                  <p className="text-sky-200 text-sm font-medium tracking-wide whitespace-pre-line leading-relaxed">
-                    {notice}
-                  </p>
+                {/* Notice Alert */}
+                <div className="relative z-10 bg-slate-950/60 border border-sky-500/30 rounded-2xl p-4 sm:p-5 mb-5 shadow-inner">
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-sky-400 animate-ping mt-1.5 shrink-0" />
+                    <p className="text-sky-200 text-xs sm:text-sm font-medium tracking-wide whitespace-pre-line leading-relaxed">
+                      {notice}
+                    </p>
+                  </div>
                 </div>
                 
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  Garanta sua vaga para as atividades desta semana clicando no botão abaixo.
+                <p className="relative z-10 text-slate-400 text-xs sm:text-sm leading-relaxed">
+                  Garanta sua vaga para os treinos e partidas da semana clicando no botão de inscrição abaixo.
                 </p>
               </div>
 
-              {/* Card 2: Login/CTA */}
+              {/* Card 2: CTA Button */}
               <div className="relative group">
-                <div className={`absolute inset-0 rounded-[2rem] blur opacity-25 transition-opacity duration-500 ${enrollmentsLocked ? 'bg-rose-500/50' : 'bg-gradient-to-r from-emerald-500 to-sky-500 group-hover:opacity-40'}`}></div>
-                <div className="relative bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-[2rem] p-8 text-center shadow-2xl">
+                <div className={`absolute -inset-0.5 rounded-[2.25rem] blur opacity-40 transition-opacity duration-500 ${
+                  enrollmentsLocked 
+                    ? 'bg-rose-500/30' 
+                    : 'bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500 group-hover:opacity-75'
+                }`} />
+                <div className="relative bg-slate-900/90 backdrop-blur-2xl border border-slate-700/60 rounded-[2.25rem] p-6 sm:p-8 text-center shadow-2xl">
                   {enrollmentsLocked ? (
-                    <div className="py-3 flex flex-col items-center justify-center gap-2">
-                      <Lock className="w-6 h-6 text-rose-500 mb-2" />
-                      <h3 className="text-rose-400 font-black text-sm md:text-base uppercase tracking-widest">Inscrições Trancadas</h3>
-                      <p className="text-slate-400 text-xs font-medium">Aguarde a liberação pela organização.</p>
+                    <div className="py-2 flex flex-col items-center justify-center gap-2">
+                      <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center">
+                        <Lock className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-rose-300 font-black text-sm sm:text-base uppercase tracking-widest mt-1">Inscrições Trancadas</h3>
+                      <p className="text-slate-400 text-xs font-medium">Aguarde a liberação pela comissão de professores.</p>
                     </div>
                   ) : (
-                    <button 
-                      onClick={startStudentFlow}
-                      className="w-full bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-slate-950 font-black text-sm md:text-base uppercase tracking-widest py-5 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-[0_8px_25px_rgba(16,185,129,0.35)] hover:-translate-y-1 active:translate-y-0"
-                    >
-                      <LogIn className="w-5 h-5" />
-                      Fazer Inscrição Agora
-                    </button>
+                    <div className="space-y-3">
+                      <button 
+                        type="button"
+                        onClick={startStudentFlow}
+                        className="w-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 hover:from-emerald-300 hover:via-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm sm:text-base uppercase tracking-widest py-5 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-[0_10px_30px_rgba(16,185,129,0.35)] hover:scale-[1.02] active:scale-[0.99] cursor-pointer"
+                      >
+                        <LogIn className="w-5 h-5 text-slate-950 stroke-[2.5]" />
+                        <span>Fazer Inscrição Agora</span>
+                        <ArrowRight className="w-5 h-5 text-slate-950 stroke-[2.5]" />
+                      </button>
+                      <p className="text-[11px] text-slate-400 uppercase tracking-widest font-semibold">
+                        Rápido e seguro em 3 passos
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Card 3: Pre-list */}
-              <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-[2rem] p-6 md:p-8 shadow-2xl mt-8">
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></div>
-                  <h2 className="text-sm font-black text-slate-300 uppercase tracking-widest">
-                    Vagas em Tempo Real
-                  </h2>
+              {/* Card 3: Real-Time Slots & Classes */}
+              <div className="bg-slate-900/70 backdrop-blur-2xl border border-slate-800/80 rounded-[2.25rem] p-6 sm:p-8 shadow-2xl">
+                <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-800/60">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                    <h2 className="text-xs sm:text-sm font-black text-white uppercase tracking-widest">
+                      Vagas em Tempo Real
+                    </h2>
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-700/50">
+                    {classes.filter(c => c.isOpen).length} Turmas Abertas
+                  </span>
                 </div>
 
                 {isAdmin && (
-                  <div className="bg-amber-950/30 border border-amber-500/40 rounded-2xl p-3.5 mb-6 flex items-center justify-between gap-3 shadow-md">
+                  <div className="bg-amber-950/30 border border-amber-500/40 rounded-2xl p-4 mb-6 flex items-center justify-between gap-3 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">⭐</span>
                       <div>
@@ -2717,41 +2908,54 @@ export default function App() {
                           Modo Professor: Ajuste Rápido de Nível
                         </span>
                         <span className="text-[11px] text-slate-300">
-                          Clique nas estrelas de qualquer participante para alterar o nível com 1 clique.
+                          Clique nas estrelas de qualquer participante para alterar o nível técnico instantaneamente.
                         </span>
                       </div>
                     </div>
                     <span className="text-[10px] font-mono text-amber-300 font-black uppercase shrink-0 bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30">
-                      1 Clique
+                      1 Toque
                     </span>
                   </div>
                 )}
                 
                 {classes.filter(c => c.isOpen).length === 0 ? (
-                  <div className="py-12 flex flex-col items-center justify-center text-center bg-slate-950/50 rounded-2xl border border-slate-800/50">
-                    <Lock className="w-8 h-8 text-slate-600 mb-4" />
-                    <p className="text-slate-500 font-black tracking-widest uppercase text-xs md:text-sm">INSCRIÇÕES FECHADAS<br/>AGUARDE A LIBERAÇÃO</p>
+                  <div className="py-12 flex flex-col items-center justify-center text-center bg-slate-950/50 rounded-2xl border border-slate-800/60 p-6">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 text-slate-500 flex items-center justify-center mb-3">
+                      <Lock className="w-6 h-6" />
+                    </div>
+                    <p className="text-slate-400 font-black tracking-widest uppercase text-xs sm:text-sm">
+                      Inscrições Fechadas no Momento<br/>
+                      <span className="text-slate-500 text-xs font-normal normal-case">Aguarde a liberação pela organização.</span>
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-8">
                     {classes.filter(c => c.isOpen).map(cls => (
-                      <div key={cls.id} className="relative">
+                      <div key={cls.id} className="bg-slate-950/50 border border-slate-800/80 rounded-2xl p-4 sm:p-5 relative group">
+                        
+                        {/* Class Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                           <div>
-                            <h3 className="text-lg md:text-xl font-black text-white uppercase tracking-tight">
-                              {cls.name}
-                            </h3>
-                            <span className="text-sky-400/80 text-xs font-bold tracking-widest uppercase">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-base sm:text-lg font-black text-white uppercase tracking-tight">
+                                {cls.name}
+                              </h3>
+                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                                {cls.multiplier * 5} vagas
+                              </span>
+                            </div>
+                            <span className="text-slate-400 text-xs font-medium tracking-wide">
                               {cls.description}
                             </span>
                           </div>
+
                           <button
                             type="button"
                             onClick={() => setActiveDrawClassId(cls.id)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shrink-0 w-fit ${
+                            className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shrink-0 w-fit cursor-pointer ${
                               savedDraws[cls.id]
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                                : 'bg-slate-850 hover:bg-slate-800 text-sky-400 border border-slate-700/60 hover:border-sky-500/40'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+                                : 'bg-slate-850 hover:bg-slate-800 text-sky-300 border border-slate-700/70 hover:border-sky-500/50'
                             }`}
                           >
                             <Shuffle className="w-3.5 h-3.5 text-sky-400" />
@@ -2759,10 +2963,11 @@ export default function App() {
                           </button>
                         </div>
 
+                        {/* Saved Draw Card Alert */}
                         {savedDraws[cls.id] && (
                           <div 
                             onClick={() => setActiveDrawClassId(cls.id)}
-                            className="cursor-pointer bg-gradient-to-r from-emerald-950/40 via-slate-900 to-sky-950/40 border border-emerald-500/30 hover:border-emerald-500/60 rounded-2xl p-3.5 mb-4 flex items-center justify-between gap-3 transition-all group shadow-sm"
+                            className="cursor-pointer bg-gradient-to-r from-emerald-950/50 via-slate-900 to-sky-950/50 border border-emerald-500/30 hover:border-emerald-400 rounded-xl p-3.5 mb-4 flex items-center justify-between gap-3 transition-all group/card shadow-sm"
                           >
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-black text-sm">
@@ -2778,146 +2983,164 @@ export default function App() {
                                 </span>
                               </div>
                             </div>
-                            <span className="text-xs font-bold text-sky-400 group-hover:underline flex items-center gap-1">
+                            <span className="text-xs font-bold text-sky-400 group-hover/card:underline flex items-center gap-1 shrink-0">
                               Ver Escalação <ArrowRight className="w-3.5 h-3.5" />
                             </span>
                           </div>
                         )}
                         
+                        {/* Participants list */}
                         <div className="space-y-2">
                           {(() => {
                             const participants = getClassParticipants(cls.id);
                             const maxVagas = cls.multiplier * 5;
                             const isFull = participants.length >= maxVagas;
+                            const occupancyPercent = maxVagas > 0 ? Math.min(100, Math.round((participants.length / maxVagas) * 100)) : 0;
                             
-                            if (participants.length === 0) {
-                              return (
-                                <div className="bg-slate-950/40 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between border border-dashed border-slate-700/50 gap-3">
-                                  <span className="text-slate-500 text-xs font-bold uppercase tracking-widest">
-                                    Seja o primeiro a se inscrever!
-                                  </span>
-                                  <span className="text-emerald-500/70 text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-emerald-500/10 rounded-lg w-fit">
-                                    {maxVagas} vagas livres
-                                  </span>
-                                </div>
-                              );
-                            }
-
                             return (
                               <>
-                                {participants.map((p, idx) => {
-                                  const isWaitlist = idx >= maxVagas;
-                                  return (
+                                {/* Progress Bar */}
+                                <div className="mb-3">
+                                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider mb-1.5">
+                                    <span className={isFull ? 'text-rose-400' : 'text-emerald-400'}>
+                                      {isFull ? 'Lotado' : `${maxVagas - participants.length} vagas restantes`}
+                                    </span>
+                                    <span className="text-slate-400">
+                                      {participants.length} / {maxVagas} ({occupancyPercent}%)
+                                    </span>
+                                  </div>
+                                  <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
                                     <div 
-                                      key={p.key} 
-                                      className={`rounded-2xl p-4 flex items-center justify-between border transition-all ${
-                                        isWaitlist 
-                                          ? 'bg-rose-950/10 border-rose-900/30' 
-                                          : p.isGuest 
-                                            ? 'bg-amber-950/25 border-amber-500/40 shadow-sm shadow-amber-500/5' 
-                                            : 'bg-slate-800/40 border-slate-700/50'
+                                      className={`h-full rounded-full transition-all duration-500 ${
+                                        isFull 
+                                          ? 'bg-rose-500' 
+                                          : occupancyPercent > 70 
+                                            ? 'bg-amber-400' 
+                                            : 'bg-gradient-to-r from-emerald-500 to-sky-400'
                                       }`}
-                                    >
-                                      <div className="flex items-center gap-3 md:gap-4 w-full">
-                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
-                                          isWaitlist 
-                                            ? 'bg-rose-900/30 text-rose-400' 
-                                            : p.isGuest 
-                                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
-                                              : 'bg-slate-950 text-slate-400'
-                                        }`}>
-                                          {idx + 1}
-                                        </div>
-                                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2 flex-1 min-w-0">
-                                          <div className="flex items-center gap-1.5 flex-wrap">
-                                            <span className={`text-xs md:text-sm font-black uppercase truncate ${
+                                      style={{ width: `${occupancyPercent}%` }}
+                                    />
+                                  </div>
+                                </div>
+
+                                {participants.length === 0 ? (
+                                  <div className="bg-slate-900/40 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between border border-dashed border-slate-800 gap-2">
+                                    <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                      Nenhum aluno inscrito ainda
+                                    </span>
+                                    <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 bg-emerald-500/10 rounded-lg w-fit border border-emerald-500/20">
+                                      {maxVagas} vagas livres
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-1.5">
+                                    {participants.map((p, idx) => {
+                                      const isWaitlist = idx >= maxVagas;
+                                      return (
+                                        <div 
+                                          key={p.key} 
+                                          className={`rounded-xl p-3 flex items-center justify-between border transition-all ${
+                                            isWaitlist 
+                                              ? 'bg-rose-950/20 border-rose-900/40' 
+                                              : p.isGuest 
+                                                ? 'bg-amber-950/25 border-amber-500/40 shadow-sm shadow-amber-500/5' 
+                                                : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-3 w-full">
+                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
                                               isWaitlist 
-                                                ? 'text-rose-200/70' 
+                                                ? 'bg-rose-900/40 text-rose-300' 
                                                 : p.isGuest 
-                                                  ? 'text-amber-300' 
-                                                  : 'text-emerald-400'
+                                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
+                                                  : 'bg-slate-800 text-slate-300'
                                             }`}>
-                                              {p.name}
-                                            </span>
-                                            {p.isGuest && (
-                                              <span className="text-[10px] md:text-xs font-black text-amber-400 uppercase tracking-wide shrink-0">
-                                                {p.guestOf && p.guestOf !== 'Admin' ? `(CONVIDADO DE ${p.guestOf})` : '(CONVIDADO)'}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                        
-                                        {/* Stars Badge - with 1-click admin adjustment */}
-                                        <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                          {isAdmin ? (
-                                            <div className="flex items-center gap-1 bg-slate-950/90 border border-amber-500/40 hover:border-amber-400 px-2 py-1 rounded-xl shadow-sm transition-all">
-                                              <span className="text-[9px] font-black text-amber-400 uppercase hidden sm:inline tracking-tighter">
-                                                Nível:
-                                              </span>
-                                              <div className="flex items-center gap-0.5">
-                                                {([1, 2, 3, 4, 5] as const).map(starNum => {
-                                                  const isSelected = starNum <= p.level;
-                                                  return (
-                                                    <button
-                                                      key={starNum}
-                                                      type="button"
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleAdminUpdateParticipantLevel(cls.id, p, starNum);
-                                                      }}
-                                                      title={`Definir como ${starNum} estrela${starNum > 1 ? 's' : ''} (${SKILL_LEVEL_OPTIONS[starNum - 1]?.label})`}
-                                                      className={`text-sm sm:text-base leading-none transition-all hover:scale-135 active:scale-90 p-0.5 rounded cursor-pointer ${
-                                                        isSelected 
-                                                          ? 'opacity-100 drop-shadow-[0_0_6px_rgba(250,204,21,0.7)]' 
-                                                          : 'opacity-25 hover:opacity-80 grayscale hover:grayscale-0'
-                                                      }`}
-                                                    >
-                                                      ⭐
-                                                    </button>
-                                                  );
-                                                })}
+                                              {idx + 1}
+                                            </div>
+                                            <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2 flex-1 min-w-0">
+                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className={`text-xs sm:text-sm font-black uppercase truncate ${
+                                                  isWaitlist 
+                                                    ? 'text-rose-200/80' 
+                                                    : p.isGuest 
+                                                      ? 'text-amber-300' 
+                                                      : 'text-slate-100'
+                                                }`}>
+                                                  {p.name}
+                                                </span>
+                                                {p.isGuest && (
+                                                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-wide shrink-0">
+                                                    {p.guestOf && p.guestOf !== 'Admin' ? `(CONVIDADO DE ${p.guestOf})` : '(CONVIDADO)'}
+                                                  </span>
+                                                )}
                                               </div>
-                                              <span className="text-[10px] font-mono text-amber-300 font-bold ml-1">
-                                                {p.level}★
-                                              </span>
-                                              {updatedFlashKey === p.key && (
-                                                <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 px-1 py-0.5 rounded animate-pulse ml-1">
-                                                  ✓
+                                            </div>
+                                            
+                                            {/* Stars Badge - with 1-click admin adjustment */}
+                                            <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                              {isAdmin ? (
+                                                <div className="flex items-center gap-1 bg-slate-950 border border-amber-500/40 hover:border-amber-400 px-2 py-1 rounded-xl shadow-sm transition-all">
+                                                  <span className="text-[9px] font-black text-amber-400 uppercase hidden sm:inline tracking-tighter">
+                                                    Nível:
+                                                  </span>
+                                                  <div className="flex items-center gap-0.5">
+                                                    {([1, 2, 3, 4, 5] as const).map(starNum => {
+                                                      const isSelected = starNum <= p.level;
+                                                      return (
+                                                        <button
+                                                          key={starNum}
+                                                          type="button"
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleAdminUpdateParticipantLevel(cls.id, p, starNum);
+                                                          }}
+                                                          title={`Definir como ${starNum} estrela${starNum > 1 ? 's' : ''} (${SKILL_LEVEL_OPTIONS[starNum - 1]?.label})`}
+                                                          className={`text-sm sm:text-base leading-none transition-all hover:scale-135 active:scale-90 p-0.5 rounded cursor-pointer ${
+                                                            isSelected 
+                                                              ? 'opacity-100 drop-shadow-[0_0_6px_rgba(250,204,21,0.7)]' 
+                                                              : 'opacity-25 hover:opacity-80 grayscale hover:grayscale-0'
+                                                          }`}
+                                                        >
+                                                          ⭐
+                                                        </button>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                  <span className="text-[10px] font-mono text-amber-300 font-bold ml-1">
+                                                    {p.level}★
+                                                  </span>
+                                                  {updatedFlashKey === p.key && (
+                                                    <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 px-1 py-0.5 rounded animate-pulse ml-1">
+                                                      ✓
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                <button 
+                                                  type="button"
+                                                  onClick={() => setAdminQuickLoginOpen(true)}
+                                                  className={`text-[11px] tracking-tight px-2 py-0.5 rounded-lg border font-mono select-none transition-transform hover:scale-105 cursor-pointer ${
+                                                    p.isGuest
+                                                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                                                      : 'bg-slate-900 border-slate-700/60 text-sky-300'
+                                                  }`}
+                                                  title={`Nível: ${SKILL_LEVEL_OPTIONS.find(o => o.level === p.level)?.label || 'Regular'} (Clique para gerenciar como Professor)`}
+                                                >
+                                                  {getSkillStars(p.level)}
+                                                </button>
+                                              )}
+                                              {isWaitlist && (
+                                                <span className="text-[9px] font-black tracking-widest uppercase text-rose-300 bg-rose-500/20 border border-rose-500/40 px-2 py-1 rounded-md shrink-0">
+                                                  Espera
                                                 </span>
                                               )}
                                             </div>
-                                          ) : (
-                                            <button 
-                                              type="button"
-                                              onClick={() => setAdminQuickLoginOpen(true)}
-                                              className={`text-[11px] tracking-tight px-2 py-0.5 rounded-lg border font-mono select-none transition-transform hover:scale-105 cursor-pointer ${
-                                                p.isGuest
-                                                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                                                  : 'bg-slate-950/80 border-slate-700/60 text-sky-300'
-                                              }`}
-                                              title={`Nível: ${SKILL_LEVEL_OPTIONS.find(o => o.level === p.level)?.label || 'Regular'} (Clique para gerenciar como Professor)`}
-                                            >
-                                              {getSkillStars(p.level)}
-                                            </button>
-                                          )}
-                                          {isWaitlist && (
-                                            <span className="text-[9px] font-black tracking-widest uppercase text-rose-400 border border-rose-400/30 px-2 py-1 rounded-md shrink-0">
-                                              Espera
-                                            </span>
-                                          )}
+                                          </div>
                                         </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                                <div className="pt-3 flex justify-between items-center px-1">
-                                  <span className={`text-[10px] font-black uppercase tracking-widest ${isFull ? 'text-rose-500' : 'text-emerald-500'}`}>
-                                    {isFull ? 'TURMA LOTADA' : 'VAGAS DISPONÍVEIS'}
-                                  </span>
-                                  <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest bg-slate-900 px-3 py-1 rounded-lg">
-                                    {Math.min(participants.length, maxVagas)} / {maxVagas}
-                                  </span>
-                                </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </>
                             );
                           })()}
@@ -2935,16 +3158,17 @@ export default function App() {
                       if (justifiedIds.length === 0) return null;
                       
                       return (
-                        <div className="pt-6 border-t border-slate-800/80 mt-8">
-                          <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">
+                        <div className="pt-6 border-t border-slate-800 mt-6">
+                          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
                             Ausências Justificadas
                           </h3>
                           <div className="flex flex-wrap gap-2">
                             {justifiedIds.map(studentId => {
                               const st = students.find(s => s.id === studentId);
                               return (
-                                <span key={studentId} className="bg-slate-800/40 border border-slate-700/50 text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg">
-                                  {st?.name || 'Aluno Desconhecido'}
+                                <span key={studentId} className="bg-slate-950 border border-slate-800 text-slate-400 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg">
+                                  {st?.name || 'Aluno'}
                                 </span>
                               );
                             })}
@@ -2958,16 +3182,21 @@ export default function App() {
 
               {/* Justification CTA at the bottom */}
               {absenceJustificationOpen && (
-                <div className="mt-8 relative group">
+                <div className="relative group">
                   <div className="absolute inset-0 rounded-[2rem] blur opacity-25 transition-opacity duration-500 bg-rose-500 group-hover:opacity-40"></div>
-                  <div className="relative bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-[2rem] p-6 text-center shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="relative bg-slate-900/90 backdrop-blur-xl border border-rose-500/30 rounded-[2rem] p-6 text-center shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-left">
-                      <h3 className="text-rose-400 font-black text-sm md:text-base uppercase tracking-widest mb-1">Não vai poder ir?</h3>
-                      <p className="text-slate-400 text-xs font-medium">Avise a organização justificando sua ausência.</p>
+                      <h3 className="text-rose-300 font-black text-sm sm:text-base uppercase tracking-widest mb-1">
+                        Não vai poder comparecer?
+                      </h3>
+                      <p className="text-slate-400 text-xs font-medium">
+                        Avise os professores enviando sua justificativa de ausência.
+                      </p>
                     </div>
                     <button 
+                      type="button"
                       onClick={startJustificationFlow}
-                      className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 border border-rose-500/30 hover:border-rose-500/50 text-rose-300 font-black text-xs uppercase tracking-widest py-3 px-6 rounded-xl transition-all"
+                      className="w-full sm:w-auto bg-slate-850 hover:bg-slate-800 border border-rose-500/40 hover:border-rose-500 text-rose-300 hover:text-white font-black text-xs uppercase tracking-widest py-3 px-6 rounded-xl transition-all cursor-pointer shadow-sm"
                     >
                       Justificar Ausência
                     </button>
@@ -2975,7 +3204,7 @@ export default function App() {
                 </div>
               )}
 
-            </div>
+            </main>
           </motion.div>
         )}
       </AnimatePresence>
@@ -3012,16 +3241,19 @@ export default function App() {
       )}
 
       {adminQuickLoginOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center">
                   <Lock className="w-4 h-4" />
                 </div>
-                <h3 className="text-base font-black text-white uppercase tracking-tight">
-                  Modo Professor
-                </h3>
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight">
+                    Modo Professor
+                  </h3>
+                  <span className="text-[10px] text-amber-400/80 uppercase font-black tracking-wider">Acesso Rápido</span>
+                </div>
               </div>
               <button
                 type="button"
@@ -3030,27 +3262,30 @@ export default function App() {
                   setQuickAdminPassword('');
                   setQuickAdminError('');
                 }}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <p className="text-xs text-slate-300 leading-relaxed">
               Autentique-se como professor para ajustar o nível de estrelas dos inscritos diretamente na página inicial com 1 clique.
             </p>
 
             <form onSubmit={handleQuickAdminLogin} className="space-y-3">
-              <input
-                type="password"
-                value={quickAdminPassword}
-                onChange={(e) => setQuickAdminPassword(e.target.value)}
-                placeholder="Digite a senha (admin123)"
-                autoFocus
-                className="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-4 py-3 text-white text-center tracking-widest text-sm focus:outline-none focus:border-amber-400 transition-all placeholder:tracking-normal placeholder:text-slate-600"
-              />
+              <div className="space-y-1">
+                <input
+                  type="password"
+                  value={quickAdminPassword}
+                  onChange={(e) => setQuickAdminPassword(e.target.value)}
+                  placeholder="Digite a senha de admin"
+                  autoFocus
+                  className="w-full bg-slate-950 border border-slate-700/80 focus:border-amber-400 rounded-xl px-4 py-3 text-white text-center tracking-widest text-sm focus:outline-none transition-all placeholder:tracking-normal placeholder:text-slate-600"
+                />
+              </div>
+
               {quickAdminError && (
-                <p className="text-rose-400 text-xs font-bold text-center">{quickAdminError}</p>
+                <p className="text-rose-400 text-xs font-bold text-center bg-rose-500/10 py-1.5 rounded-lg border border-rose-500/20">{quickAdminError}</p>
               )}
 
               <div className="flex items-center gap-2 pt-1">
@@ -3061,7 +3296,7 @@ export default function App() {
                     setQuickAdminPassword('');
                     setQuickAdminError('');
                   }}
-                  className="w-1/2 py-2.5 rounded-xl border border-slate-700 text-slate-400 font-bold text-xs uppercase hover:bg-slate-800 transition-colors"
+                  className="w-1/2 py-2.5 rounded-xl border border-slate-700 text-slate-400 font-bold text-xs uppercase hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -3073,14 +3308,14 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="pt-2 border-t border-slate-800 text-center">
+              <div className="pt-2 border-t border-slate-800/80 text-center">
                 <button
                   type="button"
                   onClick={() => {
                     setAdminQuickLoginOpen(false);
                     setView('adminLogin');
                   }}
-                  className="text-[11px] text-sky-400 hover:underline uppercase tracking-wide font-bold"
+                  className="text-[11px] text-sky-400 hover:text-sky-300 hover:underline uppercase tracking-wide font-bold"
                 >
                   Ir para a tela de Login do Painel Completo →
                 </button>
