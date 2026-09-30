@@ -157,21 +157,21 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl rounded-3xl p-5 sm:p-7 shadow-2xl shadow-sky-950/20 my-auto flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+      <div className="bg-[#03140a] border border-emerald-500/30 w-full max-w-4xl rounded-3xl p-5 sm:p-7 shadow-2xl my-auto flex flex-col max-h-[92vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
+        <div className="flex items-center justify-between pb-4 border-b border-emerald-900/40 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
+            <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
               <Shuffle className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black tracking-widest uppercase text-sky-400">
+                <span className="text-[10px] font-black tracking-widest uppercase text-emerald-400">
                   Sorteador de Linhas & Times
                 </span>
-                <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-bold">
+                <span className="text-[10px] bg-black text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-900/50">
                   {totalParticipants} {totalParticipants === 1 ? 'inscrito' : 'inscritos'}
                 </span>
               </div>
@@ -182,7 +182,7 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
           </div>
           <button 
             onClick={onClose}
-            className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-full bg-black hover:bg-emerald-950 text-emerald-400 hover:text-white flex items-center justify-center transition-colors border border-emerald-900/60"
           >
             <X className="w-5 h-5" />
           </button>
@@ -192,20 +192,20 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar py-4 space-y-6">
 
           {/* Controls Bar: Option 4, 5, 6 players */}
-          <div className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 sm:p-5">
+          <div className="bg-black/60 border border-emerald-900/60 rounded-2xl p-4 sm:p-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <label className="text-xs font-black uppercase tracking-wider text-slate-300 block mb-1.5 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-sky-400" />
+                <label className="text-xs font-black uppercase tracking-wider text-emerald-200 block mb-1.5 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-emerald-400" />
                   Jogadores por Linha / Time:
                 </label>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-emerald-300/70">
                   Prefere jogar com 4, 5 ou 6 pessoas em cada time?
                 </p>
               </div>
 
               {/* Selector for 4, 5, 6 */}
-              <div className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800 shrink-0">
+              <div className="flex items-center gap-2 bg-black p-1.5 rounded-2xl border border-emerald-900/60 shrink-0">
                 {([4, 5, 6] as const).map(num => (
                   <button
                     key={num}
@@ -215,8 +215,8 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
                     }}
                     className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                       teamSize === num
-                        ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/20 scale-[1.02]'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                        ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/20 scale-[1.02]'
+                        : 'text-emerald-400/70 hover:text-white hover:bg-emerald-950'
                     }`}
                   >
                     <span>{num}</span>
@@ -227,30 +227,30 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
             </div>
 
             {/* Projection Summary Card */}
-            <div className="mt-4 pt-4 border-t border-slate-800/60 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/60 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-black">
+            <div className="mt-4 pt-4 border-t border-emerald-900/40 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="bg-[#020d06] p-3 rounded-xl border border-emerald-900/50 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-black">
                   {potentialTeams}
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Times completos</span>
-                  <span className="font-black text-slate-200">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400/70 block">Times completos</span>
+                  <span className="font-black text-emerald-100">
                     {potentialTeams > 0 ? `${potentialTeams} ${potentialTeams === 1 ? 'time' : 'times'} de ${teamSize}` : 'Nenhum time completo'}
                   </span>
                 </div>
               </div>
 
-              <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/60 flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg border flex items-center justify-center font-black ${
+              <div className="bg-[#020d06] p-3 rounded-xl border border-emerald-900/50 flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full border flex items-center justify-center font-black ${
                   potentialWaitlist > 0 
-                    ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' 
-                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-400' 
+                    : 'bg-black border-emerald-900/50 text-emerald-500'
                 }`}>
                   {potentialWaitlist}
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Espera de linha</span>
-                  <span className="font-black text-slate-200">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400/70 block">Espera de linha</span>
+                  <span className="font-black text-emerald-100">
                     {potentialWaitlist > 0 
                       ? `${potentialWaitlist} ${potentialWaitlist === 1 ? 'pessoa' : 'pessoas'}` 
                       : 'Ninguém na espera'}
@@ -258,13 +258,13 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
                 </div>
               </div>
 
-              <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/60 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center font-black">
+              <div className="bg-[#020d06] p-3 rounded-xl border border-emerald-900/50 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-black">
                   <Scale className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Balanceamento</span>
-                  <span className="font-black text-slate-200">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400/70 block">Balanceamento</span>
+                  <span className="font-black text-emerald-100">
                     Mix automático ⭐
                   </span>
                 </div>
@@ -272,7 +272,7 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
             </div>
 
             {/* Notification explaining registration priority rule */}
-            <div className="mt-3 flex items-start gap-2 text-[11px] text-slate-400 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/40">
+            <div className="mt-3 flex items-start gap-2 text-[11px] text-emerald-200/80 bg-black/60 p-2.5 rounded-xl border border-emerald-900/60">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
               <span>
                 <strong className="text-emerald-300">Regra de Preferência:</strong> Os primeiros inscritos na ordem cronológica garantem vaga nas linhas titulares ({potentialTeams * teamSize} primeiros). O restante fica na fila de espera de linha.
@@ -286,7 +286,7 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
               type="button"
               onClick={handleDraw}
               disabled={totalParticipants < 4}
-              className="w-full sm:w-auto bg-gradient-to-r from-sky-500 via-sky-400 to-emerald-400 hover:from-sky-400 hover:to-emerald-300 disabled:opacity-50 text-slate-950 font-black text-sm uppercase tracking-wider py-3.5 px-7 rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-[0_4px_16px_rgba(14,165,233,0.3)] hover:-translate-y-0.5 active:translate-y-0"
+              className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 via-green-400 to-teal-400 hover:from-emerald-400 hover:to-teal-300 disabled:opacity-50 text-slate-950 font-black text-sm uppercase tracking-wider py-3.5 px-7 rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-[0_4px_16px_rgba(16,185,129,0.35)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             >
               <Shuffle className="w-5 h-5" />
               {currentDraw ? 'Sortear Novamente (Reembaralhar)' : 'Sortear Times Equilibrados'}
@@ -352,9 +352,9 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
             <div className="space-y-6">
               
               {/* Swap hint if organizer wants manual tweak */}
-              <div className="flex items-center justify-between bg-slate-950/40 border border-slate-800 p-2.5 rounded-xl text-[11px] text-slate-400">
+              <div className="flex items-center justify-between bg-black/60 border border-emerald-900/50 p-2.5 rounded-xl text-[11px] text-emerald-300/80">
                 <span className="flex items-center gap-1.5">
-                  <ArrowLeftRight className="w-3.5 h-3.5 text-sky-400" />
+                  <ArrowLeftRight className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Dica: para trocar jogadores de time manualmente, clique em um e depois no outro.</span>
                 </span>
                 {selectedPlayerForSwap && (
@@ -367,16 +367,16 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
               {/* Teams Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {currentDraw.teams.map((team, tIdx) => {
-                  const emojis = ['🟢', '🔵', '🟡', '🟣', '🔴', '🟠'];
+                  const emojis = ['🟢', '⭐', '🟡', '⚽', '🏆', '💎'];
                   const emoji = emojis[tIdx % emojis.length];
 
                   return (
                     <div 
                       key={team.id}
-                      className="bg-slate-950/70 border border-slate-800 rounded-2xl overflow-hidden shadow-lg flex flex-col"
+                      className="bg-[#020d06] border border-emerald-900/60 rounded-2xl overflow-hidden shadow-lg flex flex-col"
                     >
                       {/* Team Header */}
-                      <div className="bg-slate-850 p-3.5 border-b border-slate-800 flex items-center justify-between">
+                      <div className="bg-[#041a0d] p-3.5 border-b border-emerald-900/40 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-base">{emoji}</span>
                           <h4 className="font-black text-sm uppercase text-white tracking-wide">
@@ -384,7 +384,7 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
                           </h4>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold bg-slate-800 px-2 py-0.5 rounded text-sky-300 border border-slate-700 font-mono">
+                          <span className="text-[10px] font-bold bg-black px-2 py-0.5 rounded text-emerald-300 border border-emerald-900/50 font-mono">
                             Média: {team.averageStars} ⭐
                           </span>
                         </div>
@@ -400,14 +400,14 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
                               key={player.key}
                               type="button"
                               onClick={() => handlePlayerClick(team.id, player.key)}
-                              className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2 ${
+                              className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2 cursor-pointer ${
                                 isSelectedForSwap
                                   ? 'bg-amber-500/20 border-amber-400 text-amber-200 scale-[1.02] shadow-md shadow-amber-500/10'
-                                  : 'bg-slate-900/80 hover:bg-slate-850 border-slate-800/80 text-slate-200'
+                                  : 'bg-black/70 hover:bg-emerald-950/40 border-emerald-950 text-emerald-100'
                               }`}
                             >
                               <div className="flex items-center gap-2.5 min-w-0">
-                                <span className="w-5 h-5 rounded-lg bg-slate-800 text-slate-400 text-[10px] font-black flex items-center justify-center shrink-0">
+                                <span className="w-5 h-5 rounded-full bg-emerald-950/80 border border-emerald-900/60 text-emerald-400 text-[10px] font-black flex items-center justify-center shrink-0">
                                   {pIdx + 1}
                                 </span>
                                 <div className="truncate">
@@ -423,7 +423,7 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
                               </div>
 
                               <div className="shrink-0">
-                                <span className="text-[11px] font-mono tracking-tighter text-sky-300">
+                                <span className="text-[11px] font-mono tracking-tighter text-amber-300">
                                   {getSkillStars(player.level)}
                                 </span>
                               </div>
@@ -433,7 +433,7 @@ export const TeamDrawModal: React.FC<TeamDrawModalProps> = ({
                       </div>
 
                       {/* Team Footer */}
-                      <div className="p-2.5 bg-slate-950/90 border-t border-slate-850 flex justify-between items-center text-[10px] text-slate-400">
+                      <div className="p-2.5 bg-black/90 border-t border-emerald-900/40 flex justify-between items-center text-[10px] text-emerald-400/80">
                         <span>Total: {team.totalStars} estrelas</span>
                         <span className="text-emerald-400 font-bold">{team.players.length} jogadores</span>
                       </div>

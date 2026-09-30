@@ -170,13 +170,13 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
   const isFull = currentParticipants.length >= maxVagas;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-hidden">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md overflow-hidden">
+      <div className="bg-[#03140a] border border-emerald-500/30 rounded-3xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-500/15 via-sky-500/15 to-emerald-500/15 border-b border-slate-800 p-4 sm:p-6 flex items-center justify-between shrink-0">
+        <div className="bg-gradient-to-r from-emerald-950/80 via-[#031c0e] to-black/80 border-b border-emerald-900/50 p-4 sm:p-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center text-2xl shadow-lg shadow-amber-500/10 shrink-0">
+            <div className="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center text-2xl shadow-lg shadow-amber-500/10 shrink-0">
               ⚽
             </div>
             <div>
@@ -188,7 +188,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                   Inclusão Direta & Sorteio
                 </span>
               </div>
-              <p className="text-xs text-slate-300 mt-0.5 max-w-2xl hidden sm:block">
+              <p className="text-xs text-emerald-200/70 mt-0.5 max-w-2xl hidden sm:block">
                 No sábado ninguém se inscreve pelo app. Escolha a turma, clique nos alunos ou inclua convidados para realizar o sorteio de linhas equilibrado.
               </p>
             </div>
@@ -199,7 +199,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
               <button
                 type="button"
                 onClick={() => onSetActiveDay('SÁBADO')}
-                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-amber-500/20 text-amber-300 border border-slate-700 hover:border-amber-500/40 rounded-xl text-xs font-bold uppercase transition-colors"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-[#020d06] hover:bg-amber-500/20 text-amber-300 border border-emerald-900/60 hover:border-amber-500/40 rounded-xl text-xs font-bold uppercase transition-colors"
                 title="Mudar o Dia Ativo para SÁBADO"
               >
                 <Calendar className="w-3.5 h-3.5 text-amber-400" />
@@ -208,7 +208,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
             )}
             <button 
               onClick={onClose}
-              className="w-10 h-10 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors border border-slate-700"
+              className="w-10 h-10 rounded-full bg-[#020d06] hover:bg-emerald-900/40 text-emerald-400 hover:text-white flex items-center justify-center transition-colors border border-emerald-900/60"
             >
               <X className="w-5 h-5" />
             </button>
@@ -216,15 +216,15 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
         </div>
 
         {/* Passo 1: Seletor de Turma */}
-        <div className="bg-slate-950/70 border-b border-slate-800 px-4 sm:px-6 py-3 shrink-0">
+        <div className="bg-[#020904] border-b border-emerald-900/50 px-4 sm:px-6 py-3 shrink-0">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-              <span className="w-4 h-4 rounded-full bg-sky-500 text-slate-950 text-[10px] font-black flex items-center justify-center">1</span>
+            <span className="text-[11px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+              <span className="w-4 h-4 rounded-full bg-emerald-400 text-black text-[10px] font-black flex items-center justify-center">1</span>
               Escolha a Turma / Modalidade:
             </span>
             {currentClass && (
-              <span className="text-[11px] text-slate-400 font-medium">
-                Vagas: <strong className="text-sky-400 font-bold">{currentParticipants.length}</strong> / {maxVagas}
+              <span className="text-[11px] text-emerald-300/80 font-medium">
+                Vagas: <strong className="text-emerald-300 font-bold">{currentParticipants.length}</strong> / {maxVagas}
               </span>
             )}
           </div>
@@ -244,13 +244,13 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                   }}
                   className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2.5 shrink-0 border ${
                     isSelected
-                      ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-[0_0_15px_rgba(14,165,233,0.35)] scale-[1.02]'
-                      : 'bg-slate-800/70 text-slate-300 border-slate-700/80 hover:bg-slate-700 hover:text-white'
+                      ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-black border-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.35)] scale-[1.02]'
+                      : 'bg-[#020d06] text-emerald-200/80 border-emerald-900/60 hover:bg-[#041a0d] hover:text-white'
                   }`}
                 >
                   <span>{cls.name}</span>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    isSelected ? 'bg-slate-950 text-sky-300' : 'bg-slate-900 text-slate-400'
+                    isSelected ? 'bg-black text-emerald-300' : 'bg-black/60 text-emerald-400/80'
                   }`}>
                     {pCount} {pCount === 1 ? 'inscrito' : 'inscritos'}
                   </span>
@@ -264,20 +264,20 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
         </div>
 
         {/* Main Content Area: Split 2 Columns */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0 bg-[#020804]">
           
           {/* Left Column: Inclusion Controls (Students or Guests) */}
           <div className="lg:col-span-7 flex flex-col space-y-4">
             
             {/* Tabs for Inclusion */}
-            <div className="flex items-center gap-2 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800 shrink-0">
+            <div className="flex items-center gap-2 bg-[#020d06] p-1.5 rounded-2xl border border-emerald-900/60 shrink-0">
               <button
                 type="button"
                 onClick={() => setActiveTab('students')}
                 className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                   activeTab === 'students'
-                    ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/20'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-black font-black shadow-md shadow-emerald-500/20'
+                    : 'text-emerald-300/70 hover:text-white'
                 }`}
               >
                 <Users className="w-4 h-4" />
@@ -289,8 +289,8 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                 onClick={() => setActiveTab('guests')}
                 className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                   activeTab === 'guests'
-                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black shadow-md shadow-amber-500/20'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black shadow-md shadow-amber-500/20'
+                    : 'text-emerald-300/70 hover:text-white'
                 }`}
               >
                 <UserPlus className="w-4 h-4" />
@@ -305,19 +305,19 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                 {/* Search & Multi-select Mode Controls */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
                   <div className="relative flex-1">
-                    <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-500" />
+                    <Search className="w-4 h-4 absolute left-3.5 top-3 text-emerald-500/60" />
                     <input
                       type="text"
                       placeholder="Pesquisar aluno por nome..."
                       value={studentSearch}
                       onChange={(e) => setStudentSearch(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500 transition-colors"
+                      className="w-full bg-[#020d06] border border-emerald-900/60 rounded-xl pl-10 pr-3.5 py-2 text-xs text-emerald-100 placeholder:text-emerald-600/60 focus:outline-none focus:border-emerald-400 transition-colors"
                     />
                     {studentSearch && (
                       <button 
                         type="button" 
                         onClick={() => setStudentSearch('')} 
-                        className="absolute right-3 top-2.5 text-slate-500 hover:text-white text-xs"
+                        className="absolute right-3 top-2.5 text-emerald-500 hover:text-white text-xs"
                       >
                         ✕
                       </button>
@@ -333,10 +333,10 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                     className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shrink-0 border ${
                       multiSelectMode
                         ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                        : 'bg-[#020d06] text-emerald-300 border-emerald-900/60 hover:bg-[#031c0e]'
                     }`}
                   >
-                    {multiSelectMode ? <CheckSquare className="w-3.5 h-3.5 text-amber-400" /> : <Square className="w-3.5 h-3.5 text-slate-400" />}
+                    {multiSelectMode ? <CheckSquare className="w-3.5 h-3.5 text-amber-400" /> : <Square className="w-3.5 h-3.5 text-emerald-400" />}
                     <span>{multiSelectMode ? 'Modo Vários Ativo' : 'Selecionar Vários'}</span>
                   </button>
                 </div>
@@ -351,7 +351,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                       <button
                         type="button"
                         onClick={handleSelectAllFiltered}
-                        className="text-[11px] font-bold text-sky-400 hover:underline px-2 py-0.5"
+                        className="text-[11px] font-bold text-emerald-400 hover:underline px-2 py-0.5"
                       >
                         Selecionar todos não inscritos ({filteredStudents.filter(s => !enrolledStudentIdSet.has(s.id)).length})
                       </button>
@@ -359,7 +359,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                         <button
                           type="button"
                           onClick={handleClearSelection}
-                          className="text-[11px] font-bold text-slate-400 hover:text-white px-2 py-0.5"
+                          className="text-[11px] font-bold text-emerald-400/80 hover:text-white px-2 py-0.5"
                         >
                           Limpar
                         </button>
@@ -387,7 +387,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                 )}
 
                 {/* Instruction note */}
-                <p className="text-[11px] text-slate-400 shrink-0">
+                <p className="text-[11px] text-emerald-400/80 shrink-0">
                   {multiSelectMode 
                     ? 'Marque os alunos que deseja incluir e clique em "Inserir na Turma".' 
                     : 'Clique diretamente em qualquer aluno para inseri-lo ou retirá-lo da turma.'}
@@ -396,8 +396,8 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                 {/* Students List */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-2 max-h-[350px]">
                   {filteredStudents.length === 0 ? (
-                    <div className="text-center py-10 bg-slate-950/40 rounded-2xl border border-slate-800/60 p-4">
-                      <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">
+                    <div className="text-center py-10 bg-black/40 rounded-2xl border border-emerald-900/40 p-4">
+                      <p className="text-emerald-500 text-xs font-bold uppercase tracking-wider">
                         Nenhum aluno encontrado para "{studentSearch}"
                       </p>
                     </div>
@@ -419,10 +419,10 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                           }}
                           className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 cursor-pointer ${
                             isEnrolled
-                              ? 'bg-emerald-950/20 border-emerald-500/40 hover:bg-emerald-950/30 shadow-sm'
+                              ? 'bg-emerald-950/40 border-emerald-500/40 hover:bg-emerald-950/60 shadow-sm'
                               : isSelectedInMulti
                                 ? 'bg-amber-500/15 border-amber-500/50 shadow-sm'
-                                : 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-800/60 hover:border-slate-700'
+                                : 'bg-black/60 border-emerald-900/60 hover:bg-[#03140a] hover:border-emerald-700'
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
@@ -433,14 +433,14 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                                   checked={isSelectedInMulti}
                                   disabled={isEnrolled}
                                   onChange={() => handleToggleSelectStudent(student.id)}
-                                  className="w-4 h-4 rounded text-sky-500 focus:ring-sky-500 bg-slate-900 border-slate-700 cursor-pointer disabled:opacity-40"
+                                  className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 bg-black border-emerald-800 cursor-pointer disabled:opacity-40"
                                 />
                               </div>
                             ) : (
-                              <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
                                 isEnrolled 
                                   ? 'bg-emerald-500 text-slate-950' 
-                                  : 'bg-slate-800 text-slate-400'
+                                  : 'bg-[#020d06] text-emerald-400 border border-emerald-900/60'
                               }`}>
                                 {isEnrolled ? <Check className="w-4 h-4 stroke-[3]" /> : <UserCheck className="w-3.5 h-3.5" />}
                               </div>
@@ -448,7 +448,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
 
                             <div className="truncate">
                               <span className={`text-xs sm:text-sm font-black uppercase tracking-tight block truncate ${
-                                isEnrolled ? 'text-emerald-300' : 'text-slate-200'
+                                isEnrolled ? 'text-emerald-300' : 'text-emerald-50'
                               }`}>
                                 {student.name}
                               </span>
@@ -489,7 +489,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                                     handleToggleStudent(student.id);
                                   }
                                 }}
-                                className="px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500 text-sky-300 hover:text-slate-950 border border-sky-500/30 hover:border-sky-400 text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
+                                className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 text-emerald-300 hover:text-black border border-emerald-500/30 hover:border-emerald-400 text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1"
                               >
                                 <Plus className="w-3 h-3" />
                                 <span>Inserir</span>
@@ -506,15 +506,15 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
 
             {/* TAB 2: INCLUIR CONVIDADO */}
             {activeTab === 'guests' && (
-              <div className="bg-slate-950/70 border border-amber-500/30 rounded-3xl p-5 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="bg-[#020d06] border border-amber-500/30 rounded-3xl p-5 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-emerald-900/60">
                   <div className="flex items-center gap-2.5">
                     <span className="text-xl">⭐</span>
                     <div>
                       <h3 className="text-sm font-black uppercase text-amber-300 tracking-wide">
                         Adicionar Convidado na Turma {currentClass?.name}
                       </h3>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-[11px] text-emerald-300/70">
                         O admin coloca o nome e nível do convidado para participar do sorteio de linhas.
                       </p>
                     </div>
@@ -530,7 +530,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
 
                 <form onSubmit={handleAddGuest} className="space-y-4">
                   <div>
-                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-300 block mb-1.5">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-emerald-200 block mb-1.5">
                       Nome do Convidado:
                     </label>
                     <input
@@ -540,12 +540,12 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                       onChange={(e) => setGuestName(e.target.value)}
                       maxLength={50}
                       autoFocus
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded-2xl px-4 py-3 text-sm text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
+                      className="w-full bg-black/80 border border-emerald-900/70 rounded-2xl px-4 py-3 text-sm text-white uppercase placeholder:normal-case placeholder:text-emerald-700 focus:outline-none focus:border-amber-400 transition-colors"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-300 block mb-1.5">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-emerald-200 block mb-1.5">
                       Nível de Jogo do Convidado (para o Sorteio Equilibrado):
                     </label>
                     <div className="grid grid-cols-5 gap-1.5">
@@ -557,7 +557,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                           className={`p-2 rounded-xl text-center border transition-all flex flex-col items-center justify-center gap-1 ${
                             guestLevel === opt.level
                               ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20 scale-[1.02]'
-                              : 'bg-slate-900/80 text-slate-300 border-slate-800 hover:bg-slate-850'
+                              : 'bg-black/60 text-emerald-200/80 border-emerald-900/60 hover:bg-[#03140a]'
                           }`}
                         >
                           <span className="text-xs">{opt.stars}</span>
@@ -579,7 +579,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                   </button>
                 </form>
 
-                <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80 text-[11px] text-slate-400 leading-relaxed">
+                <div className="bg-black/40 p-3 rounded-2xl border border-emerald-900/50 text-[11px] text-emerald-300/80 leading-relaxed">
                   💡 <strong className="text-white">Dica:</strong> Convidados aparecerão na lista oficial identificados com destaque dourado e serão incluídos automaticamente na formação dos times durante o sorteio de linhas.
                 </div>
               </div>
@@ -590,12 +590,12 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
           {/* Right Column: Live Roster & Draw Launcher */}
           <div className="lg:col-span-5 flex flex-col space-y-4">
             
-            <div className="bg-slate-950/70 border border-slate-800 rounded-3xl p-5 flex flex-col h-full shadow-lg">
+            <div className="bg-[#020d06] border border-emerald-900/60 rounded-3xl p-5 flex flex-col h-full shadow-lg">
               
               {/* Roster Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+              <div className="flex items-center justify-between pb-3 border-b border-emerald-900/60 shrink-0">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 block">
                     Escalação de Sábado:
                   </span>
                   <h3 className="text-base font-black uppercase text-white tracking-tight flex items-center gap-2">
@@ -624,8 +624,8 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                   disabled={currentParticipants.length < 4}
                   className={`w-full py-3 px-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-md ${
                     currentParticipants.length >= 4
-                      ? 'bg-gradient-to-r from-sky-500 via-emerald-500 to-teal-400 text-slate-950 hover:brightness-110 shadow-sky-500/20 active:scale-[0.99] cursor-pointer'
-                      : 'bg-slate-800 text-slate-500 border border-slate-700/60 cursor-not-allowed'
+                      ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-green-500 text-slate-950 hover:brightness-110 shadow-emerald-500/20 active:scale-[0.99] cursor-pointer'
+                      : 'bg-[#03140a] text-emerald-800 border border-emerald-900/60 cursor-not-allowed'
                   }`}
                 >
                   <Shuffle className="w-4 h-4" />
@@ -636,11 +636,11 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                   </span>
                 </button>
                 {currentParticipants.length < 4 ? (
-                  <p className="text-[10px] text-slate-500 text-center mt-1.5">
+                  <p className="text-[10px] text-emerald-600 text-center mt-1.5">
                     Mínimo de 4 participantes para realizar o sorteio de linhas.
                   </p>
                 ) : (
-                  <p className="text-[10px] text-sky-300 text-center mt-1.5">
+                  <p className="text-[10px] text-emerald-300 text-center mt-1.5">
                     {Math.floor(currentParticipants.length / 5)} times de 5 {currentParticipants.length % 5 > 0 ? `+ ${currentParticipants.length % 5} na espera` : ''}
                   </p>
                 )}
@@ -649,12 +649,12 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
               {/* Participants Roster List */}
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-2 min-h-[220px] max-h-[380px]">
                 {currentParticipants.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
-                    <Sparkles className="w-8 h-8 text-slate-600 mb-2" />
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-black/40 rounded-2xl border border-dashed border-emerald-900/60">
+                    <Sparkles className="w-8 h-8 text-emerald-700 mb-2" />
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">
                       Nenhum participante na turma ainda.
                     </p>
-                    <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
+                    <p className="text-[11px] text-emerald-600 mt-1 max-w-xs">
                       Clique nos alunos à esquerda ou insira convidados para montar o esporte de sábado.
                     </p>
                   </div>
@@ -664,24 +664,24 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                       key={p.key}
                       className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all ${
                         p.isGuest
-                          ? 'bg-amber-950/20 border-amber-500/40'
-                          : 'bg-slate-900/80 border-slate-800/80'
+                          ? 'bg-amber-950/25 border-amber-500/40'
+                          : 'bg-black/60 border-emerald-900/60'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <span className={`w-5 h-5 rounded-lg text-[10px] font-black flex items-center justify-center shrink-0 ${
-                          p.isGuest ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-800 text-slate-400'
+                        <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
+                          p.isGuest ? 'bg-amber-500/20 text-amber-300' : 'bg-[#03140a] text-emerald-400 border border-emerald-900/60'
                         }`}>
                           {idx + 1}
                         </span>
 
                         <div className="truncate">
                           <span className={`text-xs font-black uppercase tracking-tight block truncate ${
-                            p.isGuest ? 'text-amber-300' : 'text-slate-200'
+                            p.isGuest ? 'text-amber-300' : 'text-emerald-50'
                           }`}>
                             {p.name}
                           </span>
-                          <span className="text-[9px] uppercase font-bold text-slate-400 block truncate">
+                          <span className="text-[9px] uppercase font-bold text-emerald-400/70 block truncate">
                             {p.isGuest ? (p.guestOf ? `Convidado de ${p.guestOf}` : 'Convidado') : 'Aluno Oficial'}
                           </span>
                         </div>
@@ -690,7 +690,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                       {/* Stars and Remove Action */}
                       <div className="flex items-center gap-2 shrink-0">
                         {/* 1-click star adjustment */}
-                        <div className="flex items-center gap-0.5 bg-slate-950 px-1.5 py-0.5 rounded-lg border border-slate-800">
+                        <div className="flex items-center gap-0.5 bg-[#03140a] px-1.5 py-0.5 rounded-lg border border-emerald-900/60">
                           {([1, 2, 3, 4, 5] as const).map(starNum => (
                             <button
                               key={starNum}
@@ -716,7 +716,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                           onClick={() => {
                             if (currentClass) onRemoveParticipantFromClass(p, currentClass.id);
                           }}
-                          className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/30 transition-colors"
+                          className="p-1 rounded-lg text-emerald-500/60 hover:text-rose-400 hover:bg-rose-950/30 transition-colors"
                           title="Remover desta turma"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -729,11 +729,11 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
 
               {/* Roster Footer */}
               {currentParticipants.length > 0 && (
-                <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
+                <div className="pt-3 border-t border-emerald-900/60 flex items-center justify-between text-[11px] text-emerald-400/80 shrink-0">
                   <span>
                     Alunos: <strong className="text-white">{currentParticipants.filter(p => !p.isGuest).length}</strong> • Convidados: <strong className="text-amber-300">{currentParticipants.filter(p => p.isGuest).length}</strong>
                   </span>
-                  <span className="font-mono text-sky-300 font-bold">
+                  <span className="font-mono text-emerald-300 font-bold">
                     Média: {(currentParticipants.reduce((sum, p) => sum + p.level, 0) / currentParticipants.length).toFixed(1)} ⭐
                   </span>
                 </div>
@@ -746,14 +746,14 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
         </div>
 
         {/* Modal Bottom Bar */}
-        <div className="bg-slate-950/90 border-t border-slate-800 px-4 sm:px-6 py-3 flex items-center justify-between shrink-0">
-          <span className="text-[11px] text-slate-400">
+        <div className="bg-[#020604] border-t border-emerald-900/60 px-4 sm:px-6 py-3 flex items-center justify-between shrink-0">
+          <span className="text-[11px] text-emerald-400/70">
             Todas as alterações são sincronizadas automaticamente com o Firebase.
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors"
+            className="px-5 py-2 bg-[#020d06] hover:bg-emerald-900/50 text-emerald-200 font-bold text-xs uppercase tracking-wider rounded-xl transition-colors border border-emerald-900/60"
           >
             Concluir / Fechar
           </button>

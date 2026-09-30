@@ -1359,12 +1359,12 @@ export default function App() {
   const totalEnrolledCount = classes.filter(c => c.isOpen).reduce((acc, c) => acc + getClassParticipants(c.id).length, 0);
 
   return (
-    <div className="min-h-screen bg-[#050913] text-slate-100 overflow-x-hidden selection:bg-cyan-400 selection:text-slate-950 font-sans relative">
+    <div className="min-h-screen bg-[#020604] text-emerald-50 overflow-x-hidden selection:bg-emerald-400 selection:text-slate-950 font-sans relative">
       {/* Ambient background glows */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px]" />
-        <div className="absolute top-1/3 -right-32 w-[30rem] h-[30rem] bg-blue-600/10 rounded-full blur-[140px]" />
-        <div className="absolute -bottom-32 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[140px]" />
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-600/15 rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 -right-32 w-[30rem] h-[30rem] bg-green-900/15 rounded-full blur-[140px]" />
+        <div className="absolute -bottom-32 left-1/4 w-96 h-96 bg-emerald-500/12 rounded-full blur-[140px]" />
       </div>
 
       <AnimatePresence mode="wait">
@@ -1374,45 +1374,45 @@ export default function App() {
         ========================================================================= */}
         {view === 'adminLogin' && (
           <motion.div key="adminLogin" {...pageTransition} className="min-h-screen flex items-center justify-center p-6 relative z-10">
-            <div className="w-full max-w-md glass-panel rounded-3xl p-8 md:p-10 shadow-2xl relative overflow-hidden border border-white/10">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-500" />
+            <div className="w-full max-w-md bg-[#03140a]/90 backdrop-blur-2xl rounded-3xl p-8 md:p-10 shadow-2xl relative overflow-hidden border border-emerald-500/25">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-green-400 to-emerald-600" />
               
               <button 
                 onClick={() => { setView('home'); setError(''); setPassword(''); }}
-                className="inline-flex items-center gap-2 text-slate-400 hover:text-cyan-300 transition-colors mb-8 text-xs font-bold uppercase tracking-wider group"
+                className="inline-flex items-center gap-2 text-emerald-400/80 hover:text-emerald-300 transition-colors mb-8 text-xs font-bold uppercase tracking-wider group"
               >
                 <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> Voltar ao Início
               </button>
               
               <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.25)]">
-                  <ShieldCheck className="w-8 h-8 text-cyan-400" />
+                <div className="w-16 h-16 bg-emerald-500/15 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                  <ShieldCheck className="w-8 h-8 text-emerald-400" />
                 </div>
-                <span className="text-[11px] font-black uppercase tracking-widest text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-3 py-1 rounded-full inline-block mb-3">
+                <span className="text-[11px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-3 py-1 rounded-full inline-block mb-3">
                   Autenticação da Organização
                 </span>
                 <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase">Acesso Restrito</h1>
-                <p className="text-slate-400 text-sm mt-1">Digite sua senha de administrador para gerenciar o Projeto Tsunami.</p>
+                <p className="text-emerald-100/70 text-sm mt-1">Digite sua senha de administrador para gerenciar o Projeto Tsunami.</p>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-5">
                 <div>
                   <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                    <Lock className="w-4 h-4 text-emerald-600 absolute left-4 top-1/2 -translate-y-1/2" />
                     <input
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Senha do administrador"
                       autoFocus
-                      className="w-full bg-slate-950/80 border border-slate-700/70 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 rounded-2xl pl-11 pr-4 py-4 text-white text-center tracking-widest text-sm focus:outline-none transition-all placeholder:tracking-normal placeholder:text-slate-600"
+                      className="w-full bg-black/80 border border-emerald-900/70 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 rounded-2xl pl-11 pr-4 py-4 text-white text-center tracking-widest text-sm focus:outline-none transition-all placeholder:tracking-normal placeholder:text-emerald-800"
                     />
                   </div>
                   {error && <p className="text-rose-400 text-xs font-bold text-center mt-3 bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">{error}</p>}
                 </div>
                 <button 
                   type="submit"
-                  className="w-full bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 hover:from-cyan-300 hover:to-blue-500 text-slate-950 font-black text-sm uppercase tracking-widest py-4 rounded-2xl transition-all shadow-[0_4px_20px_0_rgba(6,182,212,0.4)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 hover:from-emerald-400 hover:to-green-400 text-slate-950 font-black text-sm uppercase tracking-widest py-4 rounded-2xl transition-all shadow-[0_4px_20px_0_rgba(16,185,129,0.4)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer flex items-center justify-center gap-2"
                 >
                   <LogIn className="w-4 h-4" /> Entrar no Painel
                 </button>
@@ -1429,18 +1429,18 @@ export default function App() {
             <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
               
               {/* Header (Left) - Cockpit */}
-              <div className="lg:col-span-8 glass-panel rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden border border-white/10 flex flex-col justify-between">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-teal-400 to-amber-400" />
+              <div className="lg:col-span-8 bg-[#03140a]/90 backdrop-blur-2xl rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden border border-emerald-500/25 flex flex-col justify-between">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-green-400 to-amber-400" />
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-                    <span className="text-cyan-400 text-xs font-black uppercase tracking-widest">Painel Administrativo & Gestão</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-emerald-400 text-xs font-black uppercase tracking-widest">Painel Administrativo & Gestão</span>
                   </div>
                   <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight mb-2 uppercase flex items-center gap-3">
                     Gestão Tsunami
-                    <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 uppercase tracking-wider">PRO</span>
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">PRO</span>
                   </h1>
-                  <p className="text-slate-400 text-sm md:text-base mb-6 max-w-2xl leading-relaxed">
+                  <p className="text-emerald-100/70 text-sm md:text-base mb-6 max-w-2xl leading-relaxed">
                     Controle de turmas, vagas, permissões e sorteador de linhas de alta precisão.
                   </p>
                 </div>
@@ -1461,7 +1461,7 @@ export default function App() {
                     className={`font-black text-xs md:text-sm uppercase tracking-wider py-3.5 px-5 rounded-2xl flex items-center gap-2 transition-all cursor-pointer ${
                       enrollmentsLocked 
                         ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-[0_4px_18px_0_rgba(245,158,11,0.4)]' 
-                        : 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/70'
+                        : 'bg-black/70 hover:bg-emerald-950/60 text-emerald-200 border border-emerald-900/60'
                     }`}
                   >
                     <Lock className="w-4 h-4" /> 
@@ -1481,7 +1481,7 @@ export default function App() {
                       const firstCls = classes.find(c => c.isOpen) || classes[0];
                       if (firstCls) setActiveDrawClassId(firstCls.id);
                     }}
-                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider py-3.5 px-5 rounded-2xl flex items-center gap-2 transition-all shadow-[0_4px_18px_0_rgba(6,182,212,0.4)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs md:text-sm uppercase tracking-wider py-3.5 px-5 rounded-2xl flex items-center gap-2 transition-all shadow-[0_4px_18px_0_rgba(16,185,129,0.35)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer border border-emerald-400/40"
                   >
                     <Shuffle className="w-4 h-4" /> Sorteador de Linhas
                   </button>
@@ -1496,8 +1496,8 @@ export default function App() {
               </div>
 
               {/* Header (Right) - Stats & Mode Switch */}
-              <div className="lg:col-span-4 glass-panel rounded-3xl p-6 md:p-8 flex flex-col justify-between shadow-2xl border border-white/10 relative overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-white/10">
+              <div className="lg:col-span-4 bg-[#03140a]/90 backdrop-blur-2xl rounded-3xl p-6 md:p-8 flex flex-col justify-between shadow-2xl border border-emerald-500/25 relative overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-emerald-900/40">
                   <button 
                     onClick={() => setView('home')} 
                     className="bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/40 hover:border-amber-400/60 font-black text-xs uppercase tracking-wider px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-sm cursor-pointer"
@@ -1508,46 +1508,46 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={handleAdminLogout} 
-                      className="w-10 h-10 bg-slate-800/80 rounded-xl flex items-center justify-center hover:bg-rose-950/60 hover:text-rose-400 text-slate-400 transition-colors border border-slate-700/70 hover:border-rose-800 cursor-pointer"
+                      className="w-10 h-10 bg-black/60 rounded-xl flex items-center justify-center hover:bg-rose-950/60 hover:text-rose-400 text-emerald-400 transition-colors border border-emerald-900/60 hover:border-rose-800 cursor-pointer"
                       title="Sair do Modo Administrador"
                     >
                       <LogOut className="w-4 h-4" />
                     </button>
-                    <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Sair</span>
+                    <span className="text-emerald-200/80 text-xs font-bold uppercase tracking-wider">Sair</span>
                   </div>
                 </div>
 
                 {/* Modern Metrics Grid */}
                 <div className="grid grid-cols-2 gap-3 mt-6">
-                  <div className="bg-slate-950/60 border border-white/5 rounded-2xl p-4 flex flex-col">
-                    <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                      <Users className="w-3 h-3 text-cyan-400" /> Alunos Base
+                  <div className="bg-black/60 border border-emerald-900/40 rounded-2xl p-4 flex flex-col">
+                    <span className="text-emerald-300/80 text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                      <Users className="w-3 h-3 text-emerald-400" /> Alunos Base
                     </span>
-                    <div className="text-cyan-400 text-3xl md:text-4xl font-black tracking-tight leading-none mt-auto">
+                    <div className="text-emerald-400 text-3xl md:text-4xl font-black tracking-tight leading-none mt-auto">
                       {totalStudents}
                     </div>
                   </div>
 
-                  <div className="bg-slate-950/60 border border-white/5 rounded-2xl p-4 flex flex-col">
-                    <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                      <Calendar className="w-3 h-3 text-emerald-400" /> Turmas Abertas
+                  <div className="bg-black/60 border border-emerald-900/40 rounded-2xl p-4 flex flex-col">
+                    <span className="text-emerald-300/80 text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                      <Calendar className="w-3 h-3 text-green-400" /> Turmas Abertas
                     </span>
-                    <div className="text-emerald-400 text-3xl md:text-4xl font-black tracking-tight leading-none mt-auto">
-                      {openClassesCount} <span className="text-xs text-slate-500 font-bold">/ {classes.length}</span>
+                    <div className="text-green-400 text-3xl md:text-4xl font-black tracking-tight leading-none mt-auto">
+                      {openClassesCount} <span className="text-xs text-emerald-600 font-bold">/ {classes.length}</span>
                     </div>
                   </div>
 
-                  <div className="col-span-2 bg-gradient-to-r from-slate-950/80 via-slate-900/60 to-slate-950/80 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                  <div className="col-span-2 bg-gradient-to-r from-black/90 via-[#03170c]/80 to-black/90 border border-emerald-900/40 rounded-2xl p-4 flex items-center justify-between">
                     <div>
-                      <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest block mb-1">
+                      <span className="text-emerald-300/70 text-[10px] font-black uppercase tracking-widest block mb-1">
                         Inscritos na Semana
                       </span>
                       <span className="text-white font-black text-xl">
-                        {totalEnrolledCount} <span className="text-slate-400 text-xs font-bold">de {totalCapacityCount} vagas</span>
+                        {totalEnrolledCount} <span className="text-emerald-300/60 text-xs font-bold">de {totalCapacityCount} vagas</span>
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                      <span className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                         {totalCapacityCount > 0 ? Math.round((totalEnrolledCount / totalCapacityCount) * 100) : 0}% Ocupado
                       </span>
                     </div>
@@ -1559,7 +1559,7 @@ export default function App() {
               <div className="lg:col-span-7 space-y-6">
                 <div className="flex justify-between items-center px-1 mt-4 lg:mt-0">
                   <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-6 bg-cyan-400 rounded-full shadow-[0_0_12px_rgba(6,182,212,0.6)]" />
+                    <div className="w-1.5 h-6 bg-emerald-400 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.6)]" />
                     <h2 className="text-lg md:text-xl font-black text-white tracking-tight uppercase">Turmas & Modalidades</h2>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1735,26 +1735,28 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="mb-6 pt-4 border-t border-white/10">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+                  <div className="mb-6 pt-4 border-t border-emerald-900/40">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-emerald-200 mb-3 flex items-center gap-2">
                       <Trophy className="w-3.5 h-3.5 text-amber-400" />
                       Logo do Projeto
                     </h3>
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                        {logoUrl ? (
-                          <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-cyan-400 text-[11px] font-black uppercase tracking-widest">SEM LOGO</span>
-                        )}
+                      <div className="w-16 h-16 rounded-full bg-black border-2 border-emerald-500/50 p-0.5 flex items-center justify-center overflow-hidden shrink-0 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                        <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-[#020a05]">
+                          {logoUrl ? (
+                            <img src={logoUrl} alt="Logo" className="w-full h-full object-cover rounded-full" />
+                          ) : (
+                            <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest">SEM LOGO</span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex-1">
-                        <label className="cursor-pointer bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all inline-block text-center border border-white/10 hover:border-cyan-500/30 w-full shadow-sm">
+                        <label className="cursor-pointer bg-black/80 hover:bg-emerald-950/70 text-emerald-200 hover:text-white font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all inline-block text-center border border-emerald-700/60 hover:border-emerald-400 w-full shadow-sm">
                           Alterar Imagem da Logo
                           <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
                         </label>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1.5 text-center md:text-left">
-                          Formatos aceitos: JPG, PNG, WEBP
+                        <p className="text-[10px] text-emerald-400/60 uppercase tracking-wider mt-1.5 text-center md:text-left">
+                          Formatos aceitos: JPG, PNG, WEBP (Exibição Circular)
                         </p>
                       </div>
                     </div>
@@ -2130,29 +2132,29 @@ export default function App() {
             {studentStep === 1 && (
               <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
                 <div className="text-center mb-6">
-                  <span className="inline-block px-3.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 text-[10px] font-black tracking-widest uppercase mb-3">
+                  <span className="inline-block px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-black tracking-widest uppercase mb-3">
                     Passo 01 de 03 • Identificação
                   </span>
                   <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">Quem é você?</h1>
-                  <p className="text-slate-400 text-sm mt-1">Busque e selecione seu nome na lista oficial do Projeto Tsunami.</p>
+                  <p className="text-emerald-100/70 text-sm mt-1">Busque e selecione seu nome na lista oficial do Projeto Tsunami.</p>
                 </div>
                 
-                <div className="w-full glass-panel rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col border border-white/10">
+                <div className="w-full bg-[#03140a]/90 backdrop-blur-2xl rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col border border-emerald-500/25">
                   <div className="relative mb-5 shrink-0">
-                    <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600" />
                     <input 
                       type="text" 
                       placeholder="Digite seu nome para buscar..." 
                       value={studentSearchInput}
                       onChange={(e) => setStudentSearchInput(e.target.value)}
                       autoFocus
-                      className="w-full bg-slate-950/80 border border-white/10 rounded-2xl pl-12 pr-10 py-3.5 text-base text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
+                      className="w-full bg-black/80 border border-emerald-900/60 rounded-2xl pl-12 pr-10 py-3.5 text-base text-white focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-colors placeholder:text-emerald-800"
                     />
                     {studentSearchInput && (
                       <button 
                         type="button" 
                         onClick={() => setStudentSearchInput('')}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500 hover:text-white"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -2168,26 +2170,26 @@ export default function App() {
                       <button 
                         key={s.id}
                         onClick={() => handleSelectStudent(s.id)}
-                        className="w-full text-left bg-slate-950/60 hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/40 rounded-2xl p-4 transition-all hover:translate-x-1 flex items-center justify-between group cursor-pointer"
+                        className="w-full text-left bg-black/60 hover:bg-emerald-950/40 border border-emerald-900/40 hover:border-emerald-500/40 rounded-2xl p-4 transition-all hover:translate-x-1 flex items-center justify-between group cursor-pointer"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-black text-xs flex items-center justify-center shrink-0 uppercase">
+                          <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-black text-xs flex items-center justify-center shrink-0 uppercase">
                             {s.name.charAt(0)}
                           </div>
-                          <span className="text-sm font-black uppercase tracking-tight text-slate-200 group-hover:text-white">{s.name}</span>
+                          <span className="text-sm font-black uppercase tracking-tight text-emerald-100 group-hover:text-white">{s.name}</span>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition-colors" />
+                        <ChevronRight className="w-4 h-4 text-emerald-600 group-hover:text-emerald-400 transition-colors" />
                       </button>
                     ))}
                     {students.filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase())).length === 0 && (
-                       <p className="text-center text-slate-400 text-sm py-8">Nenhum atleta encontrado com este nome.</p>
+                       <p className="text-center text-emerald-300/60 text-sm py-8">Nenhum atleta encontrado com este nome.</p>
                     )}
                   </div>
                 </div>
 
                 <button 
                   onClick={() => setView('home')}
-                  className="mt-6 text-slate-400 hover:text-rose-400 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2 cursor-pointer"
+                  className="mt-6 text-emerald-400/80 hover:text-rose-400 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" /> Cancelar e Voltar ao Início
                 </button>
@@ -2197,18 +2199,18 @@ export default function App() {
             {studentStep === 2 && (
               <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
                 <div className="text-center mb-6">
-                  <span className="inline-block px-3.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 text-[10px] font-black tracking-widest uppercase mb-3">
+                  <span className="inline-block px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-black tracking-widest uppercase mb-3">
                     Passo 02 de 03 • Confirmação
                   </span>
                   <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">Sua Senha</h1>
-                  <div className="inline-block px-4 py-2 bg-slate-900/80 border border-cyan-500/30 rounded-2xl mt-2">
-                    <p className="text-cyan-300 text-xs md:text-sm uppercase font-black tracking-wider">
+                  <div className="inline-block px-4 py-2 bg-black/80 border border-emerald-500/30 rounded-2xl mt-2">
+                    <p className="text-emerald-300 text-xs md:text-sm uppercase font-black tracking-wider">
                       {students.find(s => s.id === selectedStudentId)?.name}
                     </p>
                   </div>
                 </div>
                 
-                <div className="w-full glass-panel rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col gap-6 border border-white/10">
+                <div className="w-full bg-[#03140a]/90 backdrop-blur-2xl rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col gap-6 border border-emerald-500/25">
                   <div>
                     <input 
                       type="password"
@@ -2216,7 +2218,7 @@ export default function App() {
                       onChange={(e) => setStudentPasswordInput(e.target.value)}
                       placeholder="DIGITE SUA SENHA"
                       autoFocus
-                      className="w-full bg-slate-950/80 border border-white/10 rounded-2xl px-6 py-4 text-center text-lg font-black tracking-widest uppercase text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors placeholder:text-slate-600 placeholder:tracking-normal"
+                      className="w-full bg-black/80 border border-emerald-900/60 rounded-2xl px-6 py-4 text-center text-lg font-black tracking-widest uppercase text-white focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-colors placeholder:text-emerald-800 placeholder:tracking-normal"
                     />
                     {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mt-3 bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">{studentFlowError}</p>}
                   </div>
@@ -2224,13 +2226,13 @@ export default function App() {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button 
                       onClick={() => setStudentStep(1)}
-                      className="flex-1 bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-black text-xs md:text-sm uppercase tracking-wider py-4 rounded-2xl transition-all cursor-pointer"
+                      className="flex-1 bg-black/60 hover:bg-emerald-950/60 text-emerald-300 border border-emerald-900/50 font-black text-xs md:text-sm uppercase tracking-wider py-4 rounded-2xl transition-all cursor-pointer"
                     >
                       Voltar
                     </button>
                     <button 
                       onClick={() => handleValidatePassword('enrollment')}
-                      className="flex-1 bg-gradient-to-r from-cyan-400 to-sky-500 hover:from-cyan-300 hover:to-sky-400 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider py-4 rounded-2xl transition-all shadow-[0_4px_16px_0_rgba(6,182,212,0.35)] cursor-pointer"
+                      className="flex-1 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider py-4 rounded-2xl transition-all shadow-[0_4px_16px_0_rgba(16,185,129,0.35)] cursor-pointer"
                     >
                       Validar Senha
                     </button>
@@ -2246,14 +2248,14 @@ export default function App() {
                     Passo Final • Escolha suas Atividades
                   </span>
                   <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">Inscrição & Convidados</h1>
-                  <div className="inline-block px-4 py-1.5 bg-slate-900/80 border border-cyan-500/30 rounded-2xl mt-1.5">
-                    <p className="text-cyan-300 text-xs uppercase font-black tracking-wider">
+                  <div className="inline-block px-4 py-1.5 bg-black/80 border border-emerald-500/30 rounded-2xl mt-1.5">
+                    <p className="text-emerald-300 text-xs uppercase font-black tracking-wider">
                       {students.find(s => s.id === selectedStudentId)?.name}
                     </p>
                   </div>
                 </div>
                 
-                <div className="w-full glass-panel rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col border border-white/10">
+                <div className="w-full bg-[#03140a]/90 backdrop-blur-2xl rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col border border-emerald-500/25">
                   {(() => {
                     const student = students.find(s => s.id === selectedStudentId);
                     const studentName = student?.name || 'Aluno';
@@ -2268,8 +2270,8 @@ export default function App() {
 
                     if (availableClasses.length === 0) {
                       return (
-                        <div className="text-center py-10 bg-slate-950/60 rounded-2xl border border-white/5">
-                          <p className="text-slate-400 text-sm uppercase tracking-wider font-bold">Nenhuma turma aberta para inscrição no momento.</p>
+                        <div className="text-center py-10 bg-black/60 rounded-2xl border border-emerald-950">
+                          <p className="text-emerald-400 text-sm uppercase tracking-wider font-bold">Nenhuma turma aberta para inscrição no momento.</p>
                         </div>
                       );
                     }
@@ -2277,31 +2279,31 @@ export default function App() {
                     return (
                       <>
                         {/* AVISO: NÍVEL DEFINIDO EXCLUSIVAMENTE PELO PROFESSOR */}
-                        <div className="bg-slate-950/80 border border-cyan-500/30 rounded-2xl p-4 mb-5 shadow-lg flex items-start gap-3.5">
-                          <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 flex items-center justify-center text-xl shrink-0">
+                        <div className="bg-black/70 border border-emerald-500/30 rounded-2xl p-4 mb-5 shadow-lg flex items-start gap-3.5">
+                          <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center justify-center text-xl shrink-0">
                             ⭐
                           </div>
                           <div className="flex-1">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
-                              <span className="text-xs font-black uppercase tracking-wider text-cyan-300">
+                              <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
                                 Nível & Equilíbrio de Times
                               </span>
                               <span className="text-[10px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md w-fit">
                                 Avaliado pelo Professor
                               </span>
                             </div>
-                            <p className="text-[11px] text-slate-400 leading-relaxed">
+                            <p className="text-[11px] text-emerald-100/70 leading-relaxed">
                               O nível de jogo é definido pelo <strong className="text-white">Professor</strong> para garantir sorteios justos e equilibrados em cada turma.
                             </p>
                             {(() => {
                               const existingLevel = student?.skillLevel || enrollments.find(e => e.studentId === selectedStudentId)?.skillLevel;
                               if (existingLevel) {
                                 return (
-                                  <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center gap-2">
-                                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider">
+                                  <div className="mt-2.5 pt-2 border-t border-emerald-900/40 flex items-center gap-2">
+                                    <span className="text-[10px] text-emerald-400/80 font-black uppercase tracking-wider">
                                       Seu nível atribuído:
                                     </span>
-                                    <span className="text-xs font-mono text-amber-300 font-bold bg-slate-900 border border-amber-500/30 px-2.5 py-0.5 rounded-lg">
+                                    <span className="text-xs font-mono text-amber-300 font-bold bg-black border border-amber-500/30 px-2.5 py-0.5 rounded-lg">
                                       {getSkillStars(existingLevel)} ({existingLevel}★)
                                     </span>
                                   </div>
@@ -2313,14 +2315,14 @@ export default function App() {
                         </div>
 
                         {/* Selector Tabs: Turmas vs Inserir Convidado */}
-                        <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-950/80 rounded-2xl border border-white/10 mb-6">
+                        <div className="grid grid-cols-2 gap-2 p-1.5 bg-black/80 rounded-2xl border border-emerald-900/50 mb-6">
                           <button
                             type="button"
                             onClick={() => setEnrollmentSubTab('classes')}
                             className={`py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
                               enrollmentSubTab === 'classes'
-                                ? 'bg-emerald-400 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.35)]'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                                ? 'bg-emerald-500 text-slate-950 font-black shadow-[0_0_15px_rgba(16,185,129,0.35)]'
+                                : 'text-emerald-400/70 hover:text-white hover:bg-emerald-950/40'
                             }`}
                           >
                             <span>Minhas Turmas</span>
@@ -2341,8 +2343,8 @@ export default function App() {
                             }}
                             className={`py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
                               enrollmentSubTab === 'guests'
-                                ? 'bg-amber-400 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.35)]'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                                ? 'bg-amber-400 text-slate-950 font-black shadow-[0_0_15px_rgba(245,158,11,0.35)]'
+                                : 'text-emerald-400/70 hover:text-white hover:bg-emerald-950/40'
                             }`}
                           >
                             <Users className="w-3.5 h-3.5" />
@@ -2601,19 +2603,19 @@ export default function App() {
                     Passo 01 de 03 • Ausência
                   </span>
                   <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">Justificar Falta</h1>
-                  <p className="text-slate-400 text-sm mt-1">Selecione seu nome para enviar sua justificativa à organização.</p>
+                  <p className="text-emerald-100/70 text-sm mt-1">Selecione seu nome para enviar sua justificativa à organização.</p>
                 </div>
                 
-                <div className="w-full glass-panel rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col border border-white/10">
+                <div className="w-full bg-[#03140a]/90 backdrop-blur-2xl rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col border border-emerald-500/25">
                   <div className="relative mb-5 shrink-0">
-                    <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600" />
                     <input 
-                      type="text"
-                      placeholder="Pesquise seu nome..."
+                      type="text" 
+                      placeholder="Pesquise seu nome..." 
                       value={studentSearchInput}
                       onChange={(e) => setStudentSearchInput(e.target.value)}
                       autoFocus
-                      className="w-full bg-slate-950/80 border border-white/10 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold uppercase text-white focus:outline-none focus:border-rose-400 transition-colors"
+                      className="w-full bg-black/80 border border-emerald-900/60 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold uppercase text-white focus:outline-none focus:border-rose-400 transition-colors placeholder:text-emerald-800"
                     />
                   </div>
 
@@ -2622,14 +2624,14 @@ export default function App() {
                       <button 
                         key={s.id}
                         onClick={() => handleSelectStudent(s.id, 'justification')}
-                        className="w-full text-left bg-slate-950/60 hover:bg-rose-950/30 border border-white/5 hover:border-rose-500/40 rounded-2xl p-4 transition-all hover:translate-x-1 flex items-center justify-between cursor-pointer"
+                        className="w-full text-left bg-black/60 hover:bg-rose-950/30 border border-emerald-900/50 hover:border-rose-500/40 rounded-2xl p-4 transition-all hover:translate-x-1 flex items-center justify-between cursor-pointer"
                       >
-                        <span className="text-sm font-black uppercase tracking-tight text-slate-200">{s.name}</span>
-                        <ChevronRight className="w-4 h-4 text-slate-600" />
+                        <span className="text-sm font-black uppercase tracking-tight text-emerald-50">{s.name}</span>
+                        <ChevronRight className="w-4 h-4 text-emerald-600" />
                       </button>
                     ))}
                     {students.filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase())).length === 0 && (
-                       <p className="text-center text-slate-400 text-sm py-8">Nenhum atleta encontrado.</p>
+                       <p className="text-center text-emerald-500 text-sm py-8">Nenhum atleta encontrado.</p>
                     )}
                   </div>
                   {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mt-4 bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">{studentFlowError}</p>}
@@ -2637,7 +2639,7 @@ export default function App() {
 
                 <button 
                   onClick={() => setView('home')}
-                  className="mt-8 text-slate-500 hover:text-rose-400 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2"
+                  className="mt-8 text-emerald-400/80 hover:text-emerald-300 text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2"
                 >
                   <ArrowLeft className="w-4 h-4" /> Cancelar e Voltar
                 </button>
@@ -2649,21 +2651,21 @@ export default function App() {
                 <div className="text-center mb-8">
                   <span className="inline-block px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black tracking-widest uppercase mb-4">Passo 02 de 03</span>
                   <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-4 text-white">Segurança</h1>
-                  <div className="inline-block px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl">
+                  <div className="inline-block px-4 py-2 bg-black/60 border border-emerald-900/60 rounded-xl">
                     <p className="text-rose-300 text-xs md:text-sm uppercase font-black tracking-widest">
                       {students.find(s => s.id === selectedStudentId)?.name}
                     </p>
                   </div>
                 </div>
                 
-                <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col gap-6">
+                <div className="w-full bg-[#03140a]/90 backdrop-blur-2xl border border-emerald-500/25 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col gap-6">
                   <div>
                     <input 
-                      type="password"
+                      type="password" 
                       value={studentPasswordInput}
                       onChange={(e) => setStudentPasswordInput(e.target.value)}
                       placeholder="DIGITE SUA SENHA"
-                      className="w-full bg-slate-950/60 border border-slate-700/50 rounded-2xl px-6 py-4 text-center text-lg font-black tracking-widest uppercase text-white focus:outline-none focus:border-rose-500 transition-colors"
+                      className="w-full bg-black/80 border border-emerald-900/60 rounded-2xl px-6 py-4 text-center text-lg font-black tracking-widest uppercase text-white focus:outline-none focus:border-rose-500 transition-colors"
                     />
                     {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mt-3 bg-rose-500/10 py-2 rounded-lg">{studentFlowError}</p>}
                   </div>
@@ -2671,7 +2673,7 @@ export default function App() {
                   <div className="flex flex-col sm:flex-row gap-3 mt-2">
                     <button 
                       onClick={() => setJustificationStep(1)}
-                      className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-colors"
+                      className="flex-1 bg-[#020d06] hover:bg-[#031c0e] text-emerald-300 border border-emerald-900/60 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-colors"
                     >
                       Voltar
                     </button>
@@ -2691,16 +2693,16 @@ export default function App() {
                 <div className="text-center mb-8">
                   <span className="inline-block px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black tracking-widest uppercase mb-4">Passo Final</span>
                   <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-2 text-white">Motivo</h1>
-                  <p className="text-slate-400 text-sm">Escreva por que você não poderá treinar.</p>
+                  <p className="text-emerald-100/70 text-sm">Escreva por que você não poderá treinar.</p>
                 </div>
                 
-                <div className="w-full bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col">
+                <div className="w-full bg-[#03140a]/90 backdrop-blur-2xl border border-emerald-500/25 rounded-[2rem] p-6 md:p-8 shadow-2xl flex flex-col">
                   <div className="mb-6">
                     <textarea 
                       placeholder="Escreva aqui sua justificativa, ela será analisada..."
                       value={absenceReason}
                       onChange={(e) => setAbsenceReason(e.target.value)}
-                      className="w-full bg-slate-950/50 border border-rose-500/30 rounded-xl p-4 text-sm text-rose-100 placeholder:text-rose-900/50 resize-none h-32 focus:outline-none focus:border-rose-500 transition-colors"
+                      className="w-full bg-black/80 border border-rose-500/30 rounded-xl p-4 text-sm text-rose-100 placeholder:text-rose-900/50 resize-none h-32 focus:outline-none focus:border-rose-500 transition-colors"
                     />
                   </div>
 
@@ -2709,7 +2711,7 @@ export default function App() {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button 
                       onClick={() => setJustificationStep(2)}
-                      className="sm:w-1/3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-colors"
+                      className="sm:w-1/3 bg-[#020d06] hover:bg-[#031c0e] text-emerald-300 border border-emerald-900/60 font-black text-xs md:text-sm uppercase tracking-widest py-4 rounded-2xl transition-colors"
                     >
                       Voltar
                     </button>
@@ -2730,29 +2732,30 @@ export default function App() {
             HOME VIEW
         ========================================================================= */}
         {view === 'home' && (
-          <motion.div key="home" {...pageTransition} className="min-h-screen bg-[#050913] bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(14,165,233,0.18),rgba(2,6,23,0))] flex flex-col items-center p-4 sm:p-6 md:p-8">
+          <motion.div key="home" {...pageTransition} className="min-h-screen bg-[#020604] bg-[radial-gradient(ellipse_85%_65%_at_50%_-10%,rgba(16,185,129,0.22),rgba(0,0,0,0.95))] flex flex-col items-center p-4 sm:p-6 md:p-8">
             
             {/* Top Navigation Bar */}
             <header className="w-full max-w-4xl flex flex-wrap items-center justify-between gap-3 mb-6 md:mb-8 pt-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 p-0.5 shadow-[0_0_15px_rgba(14,165,233,0.4)]">
-                  <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center overflow-hidden">
+                {/* Round Window Logo Container */}
+                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 via-emerald-600 to-green-950 p-0.5 shadow-[0_0_15px_rgba(16,185,129,0.35)] shrink-0">
+                  <div className="w-full h-full bg-black rounded-full flex items-center justify-center overflow-hidden border border-emerald-500/40">
                     {logoUrl ? (
-                      <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                      <img src={logoUrl} alt="Logo" className="w-full h-full object-cover rounded-full" />
                     ) : (
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-cyan-300 font-black text-sm">TS</span>
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-300 font-black text-xs">TS</span>
                     )}
                   </div>
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-white font-black text-sm tracking-wider uppercase">Projeto Tsunami</span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       Ao Vivo
                     </span>
                   </div>
-                  <span className="text-[11px] text-slate-400 font-medium">Inscrições & Sorteio de Linhas</span>
+                  <span className="text-[11px] text-emerald-300/70 font-medium">Inscrições & Sorteio de Linhas</span>
                 </div>
               </div>
 
@@ -2777,7 +2780,7 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={() => setView('adminPanel')}
-                      className="px-3.5 py-1.5 border border-sky-500/40 bg-sky-950/60 text-sky-300 hover:bg-sky-500/20 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-3.5 py-1.5 border border-emerald-700/60 bg-black/70 text-emerald-300 hover:bg-emerald-950/60 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <span>Painel Admin</span>
                     </button>
@@ -2785,7 +2788,7 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={handleAdminLogout}
-                      className="px-3 py-1.5 border border-slate-700 bg-slate-900/60 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                      className="px-3 py-1.5 border border-emerald-900/60 bg-black/60 text-emerald-400/80 hover:text-rose-400 hover:border-rose-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
                       title="Sair do Modo Professor"
                     >
                       Sair
@@ -2795,9 +2798,9 @@ export default function App() {
                   <button 
                     type="button"
                     onClick={() => setAdminQuickLoginOpen(true)}
-                    className="px-4 py-2 border border-slate-700/60 bg-slate-900/60 hover:bg-slate-800/80 text-slate-300 hover:text-sky-300 hover:border-sky-500/40 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+                    className="px-4 py-2 border border-emerald-800/60 bg-black/70 hover:bg-emerald-950/60 text-emerald-300 hover:text-white hover:border-emerald-500/50 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
                   >
-                    <Lock className="w-3.5 h-3.5 text-sky-400" />
+                    <Lock className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Área do Professor</span>
                   </button>
                 )}
@@ -2808,44 +2811,47 @@ export default function App() {
             <main className="w-full max-w-xl space-y-6 pb-16">
               
               {/* Card 1: Hero Header */}
-              <div className="relative overflow-hidden bg-slate-900/70 backdrop-blur-2xl border border-slate-800/80 rounded-[2.25rem] p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-600/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="relative overflow-hidden bg-[#03140a]/90 backdrop-blur-2xl border border-emerald-500/25 rounded-[2.25rem] p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.85)]">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-green-600/10 rounded-full blur-2xl pointer-events-none" />
 
                 <div className="relative z-10 flex justify-between items-start gap-4 mb-6">
                   <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-sky-500/10 border border-sky-500/25 text-sky-400 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
-                      <Calendar className="w-3 h-3" />
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
+                      <Calendar className="w-3 h-3 text-emerald-400" />
                       Agenda: {activeDay}
                     </div>
                     <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none uppercase">
                       PRÉ-INSCRIÇÕES<br/>
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-400">
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-green-300 to-emerald-200">
                         PROJETO TSUNAMI
                       </span>
                     </h1>
                   </div>
 
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl flex items-center justify-center shrink-0 overflow-hidden bg-slate-950/80 border border-slate-700/60 shadow-[0_0_20px_rgba(14,165,233,0.2)]">
-                    {logoUrl ? (
-                      <img src={logoUrl} alt="Tsunami Logo" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-white font-black text-2xl tracking-tighter">TS</span>
-                    )}
+                  {/* Prominent Circular Window for Logo */}
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full p-1 bg-gradient-to-b from-emerald-400/50 via-emerald-950/60 to-black border-2 border-emerald-400/60 shadow-[0_0_25px_rgba(16,185,129,0.35)] shrink-0 flex items-center justify-center">
+                    <div className="w-full h-full rounded-full overflow-hidden bg-black flex items-center justify-center">
+                      {logoUrl ? (
+                        <img src={logoUrl} alt="Tsunami Logo" className="w-full h-full object-cover rounded-full" />
+                      ) : (
+                        <span className="text-emerald-300 font-black text-2xl tracking-tighter">TS</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
                 {/* Notice Alert */}
-                <div className="relative z-10 bg-slate-950/60 border border-sky-500/30 rounded-2xl p-4 sm:p-5 mb-5 shadow-inner">
+                <div className="relative z-10 bg-black/75 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 mb-5 shadow-inner">
                   <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 rounded-full bg-sky-400 animate-ping mt-1.5 shrink-0" />
-                    <p className="text-sky-200 text-xs sm:text-sm font-medium tracking-wide whitespace-pre-line leading-relaxed">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping mt-1.5 shrink-0" />
+                    <p className="text-emerald-100 text-xs sm:text-sm font-medium tracking-wide whitespace-pre-line leading-relaxed">
                       {notice}
                     </p>
                   </div>
                 </div>
                 
-                <p className="relative z-10 text-slate-400 text-xs sm:text-sm leading-relaxed">
+                <p className="relative z-10 text-emerald-200/70 text-xs sm:text-sm leading-relaxed">
                   Garanta sua vaga para os treinos e partidas da semana clicando no botão de inscrição abaixo.
                 </p>
               </div>
@@ -2855,29 +2861,29 @@ export default function App() {
                 <div className={`absolute -inset-0.5 rounded-[2.25rem] blur opacity-40 transition-opacity duration-500 ${
                   enrollmentsLocked 
                     ? 'bg-rose-500/30' 
-                    : 'bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500 group-hover:opacity-75'
+                    : 'bg-gradient-to-r from-emerald-500 via-green-400 to-teal-500 group-hover:opacity-75'
                 }`} />
-                <div className="relative bg-slate-900/90 backdrop-blur-2xl border border-slate-700/60 rounded-[2.25rem] p-6 sm:p-8 text-center shadow-2xl">
+                <div className="relative bg-[#03140a]/90 backdrop-blur-2xl border border-emerald-500/25 rounded-[2.25rem] p-6 sm:p-8 text-center shadow-2xl">
                   {enrollmentsLocked ? (
                     <div className="py-2 flex flex-col items-center justify-center gap-2">
-                      <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center">
                         <Lock className="w-6 h-6" />
                       </div>
                       <h3 className="text-rose-300 font-black text-sm sm:text-base uppercase tracking-widest mt-1">Inscrições Trancadas</h3>
-                      <p className="text-slate-400 text-xs font-medium">Aguarde a liberação pela comissão de professores.</p>
+                      <p className="text-emerald-200/60 text-xs font-medium">Aguarde a liberação pela comissão de professores.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       <button 
                         type="button"
                         onClick={startStudentFlow}
-                        className="w-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 hover:from-emerald-300 hover:via-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm sm:text-base uppercase tracking-widest py-5 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-[0_10px_30px_rgba(16,185,129,0.35)] hover:scale-[1.02] active:scale-[0.99] cursor-pointer"
+                        className="w-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-green-500 hover:from-emerald-300 hover:via-emerald-400 hover:to-green-400 text-slate-950 font-black text-sm sm:text-base uppercase tracking-widest py-5 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-[0_10px_30px_rgba(16,185,129,0.35)] hover:scale-[1.02] active:scale-[0.99] cursor-pointer"
                       >
                         <LogIn className="w-5 h-5 text-slate-950 stroke-[2.5]" />
                         <span>Fazer Inscrição Agora</span>
                         <ArrowRight className="w-5 h-5 text-slate-950 stroke-[2.5]" />
                       </button>
-                      <p className="text-[11px] text-slate-400 uppercase tracking-widest font-semibold">
+                      <p className="text-[11px] text-emerald-400/80 uppercase tracking-widest font-semibold">
                         Rápido e seguro em 3 passos
                       </p>
                     </div>
@@ -2886,15 +2892,15 @@ export default function App() {
               </div>
 
               {/* Card 3: Real-Time Slots & Classes */}
-              <div className="bg-slate-900/70 backdrop-blur-2xl border border-slate-800/80 rounded-[2.25rem] p-6 sm:p-8 shadow-2xl">
-                <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-800/60">
+              <div className="bg-[#03140a]/90 backdrop-blur-2xl border border-emerald-500/25 rounded-[2.25rem] p-6 sm:p-8 shadow-2xl">
+                <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-emerald-900/40">
                   <div className="flex items-center gap-2.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                     <h2 className="text-xs sm:text-sm font-black text-white uppercase tracking-widest">
                       Vagas em Tempo Real
                     </h2>
                   </div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-700/50">
+                  <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest bg-black/60 px-2.5 py-1 rounded-full border border-emerald-900/50">
                     {classes.filter(c => c.isOpen).length} Turmas Abertas
                   </span>
                 </div>
@@ -2907,7 +2913,7 @@ export default function App() {
                         <span className="text-xs font-black uppercase tracking-wider text-amber-300 block">
                           Modo Professor: Ajuste Rápido de Nível
                         </span>
-                        <span className="text-[11px] text-slate-300">
+                        <span className="text-[11px] text-emerald-200/80">
                           Clique nas estrelas de qualquer participante para alterar o nível técnico instantaneamente.
                         </span>
                       </div>
@@ -2919,19 +2925,19 @@ export default function App() {
                 )}
                 
                 {classes.filter(c => c.isOpen).length === 0 ? (
-                  <div className="py-12 flex flex-col items-center justify-center text-center bg-slate-950/50 rounded-2xl border border-slate-800/60 p-6">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 text-slate-500 flex items-center justify-center mb-3">
+                  <div className="py-12 flex flex-col items-center justify-center text-center bg-black/60 rounded-2xl border border-emerald-950 p-6">
+                    <div className="w-12 h-12 rounded-full bg-emerald-950/40 border border-emerald-900/60 text-emerald-500 flex items-center justify-center mb-3">
                       <Lock className="w-6 h-6" />
                     </div>
-                    <p className="text-slate-400 font-black tracking-widest uppercase text-xs sm:text-sm">
+                    <p className="text-emerald-300 font-black tracking-widest uppercase text-xs sm:text-sm">
                       Inscrições Fechadas no Momento<br/>
-                      <span className="text-slate-500 text-xs font-normal normal-case">Aguarde a liberação pela organização.</span>
+                      <span className="text-emerald-400/60 text-xs font-normal normal-case">Aguarde a liberação pela organização.</span>
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-8">
                     {classes.filter(c => c.isOpen).map(cls => (
-                      <div key={cls.id} className="bg-slate-950/50 border border-slate-800/80 rounded-2xl p-4 sm:p-5 relative group">
+                      <div key={cls.id} className="bg-black/70 border border-emerald-900/50 rounded-2xl p-4 sm:p-5 relative group">
                         
                         {/* Class Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -2940,11 +2946,11 @@ export default function App() {
                               <h3 className="text-base sm:text-lg font-black text-white uppercase tracking-tight">
                                 {cls.name}
                               </h3>
-                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                                 {cls.multiplier * 5} vagas
                               </span>
                             </div>
-                            <span className="text-slate-400 text-xs font-medium tracking-wide">
+                            <span className="text-emerald-300/70 text-xs font-medium tracking-wide">
                               {cls.description}
                             </span>
                           </div>
@@ -2955,10 +2961,10 @@ export default function App() {
                             className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shrink-0 w-fit cursor-pointer ${
                               savedDraws[cls.id]
                                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
-                                : 'bg-slate-850 hover:bg-slate-800 text-sky-300 border border-slate-700/70 hover:border-sky-500/50'
+                                : 'bg-[#02140b] hover:bg-[#032212] text-emerald-300 border border-emerald-800/60 hover:border-emerald-500/60'
                             }`}
                           >
-                            <Shuffle className="w-3.5 h-3.5 text-sky-400" />
+                            <Shuffle className="w-3.5 h-3.5 text-emerald-400" />
                             {savedDraws[cls.id] ? 'Ver Times Sorteados 📋' : 'Sortear Linhas ⚖️'}
                           </button>
                         </div>
@@ -2967,23 +2973,23 @@ export default function App() {
                         {savedDraws[cls.id] && (
                           <div 
                             onClick={() => setActiveDrawClassId(cls.id)}
-                            className="cursor-pointer bg-gradient-to-r from-emerald-950/50 via-slate-900 to-sky-950/50 border border-emerald-500/30 hover:border-emerald-400 rounded-xl p-3.5 mb-4 flex items-center justify-between gap-3 transition-all group/card shadow-sm"
+                            className="cursor-pointer bg-gradient-to-r from-emerald-950/70 via-black to-[#021a0d]/70 border border-emerald-500/30 hover:border-emerald-400 rounded-xl p-3.5 mb-4 flex items-center justify-between gap-3 transition-all group/card shadow-sm"
                           >
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-black text-sm">
+                              <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-black text-sm">
                                 ⚽
                               </div>
                               <div>
                                 <span className="text-xs font-black uppercase text-emerald-300 tracking-wide block">
                                   Linhas Sorteadas & Equilibradas!
                                 </span>
-                                <span className="text-[11px] text-slate-400">
+                                <span className="text-[11px] text-emerald-200/70">
                                   {savedDraws[cls.id].teams.length} times de {savedDraws[cls.id].teamSize} jogadores
                                   {savedDraws[cls.id].waitlist.length > 0 && ` • ${savedDraws[cls.id].waitlist.length} na espera`}
                                 </span>
                               </div>
                             </div>
-                            <span className="text-xs font-bold text-sky-400 group-hover/card:underline flex items-center gap-1 shrink-0">
+                            <span className="text-xs font-bold text-emerald-400 group-hover/card:underline flex items-center gap-1 shrink-0">
                               Ver Escalação <ArrowRight className="w-3.5 h-3.5" />
                             </span>
                           </div>
@@ -3005,18 +3011,18 @@ export default function App() {
                                     <span className={isFull ? 'text-rose-400' : 'text-emerald-400'}>
                                       {isFull ? 'Lotado' : `${maxVagas - participants.length} vagas restantes`}
                                     </span>
-                                    <span className="text-slate-400">
+                                    <span className="text-emerald-300/70">
                                       {participants.length} / {maxVagas} ({occupancyPercent}%)
                                     </span>
                                   </div>
-                                  <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                  <div className="w-full h-1.5 bg-black rounded-full overflow-hidden border border-emerald-950">
                                     <div 
                                       className={`h-full rounded-full transition-all duration-500 ${
                                         isFull 
                                           ? 'bg-rose-500' 
                                           : occupancyPercent > 70 
                                             ? 'bg-amber-400' 
-                                            : 'bg-gradient-to-r from-emerald-500 to-sky-400'
+                                            : 'bg-gradient-to-r from-emerald-500 to-green-400'
                                       }`}
                                       style={{ width: `${occupancyPercent}%` }}
                                     />
@@ -3024,8 +3030,8 @@ export default function App() {
                                 </div>
 
                                 {participants.length === 0 ? (
-                                  <div className="bg-slate-900/40 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between border border-dashed border-slate-800 gap-2">
-                                    <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                  <div className="bg-black/40 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between border border-dashed border-emerald-900/60 gap-2">
+                                    <span className="text-emerald-400/70 text-xs font-bold uppercase tracking-wider">
                                       Nenhum aluno inscrito ainda
                                     </span>
                                     <span className="text-emerald-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 bg-emerald-500/10 rounded-lg w-fit border border-emerald-500/20">
@@ -3044,16 +3050,16 @@ export default function App() {
                                               ? 'bg-rose-950/20 border-rose-900/40' 
                                               : p.isGuest 
                                                 ? 'bg-amber-950/25 border-amber-500/40 shadow-sm shadow-amber-500/5' 
-                                                : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'
+                                                : 'bg-[#03150b]/80 border-emerald-950 hover:border-emerald-800/60'
                                           }`}
                                         >
                                           <div className="flex items-center gap-3 w-full">
-                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
+                                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
                                               isWaitlist 
                                                 ? 'bg-rose-900/40 text-rose-300' 
                                                 : p.isGuest 
                                                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
-                                                  : 'bg-slate-800 text-slate-300'
+                                                  : 'bg-black text-emerald-400 border border-emerald-900/60'
                                             }`}>
                                               {idx + 1}
                                             </div>
@@ -3064,7 +3070,7 @@ export default function App() {
                                                     ? 'text-rose-200/80' 
                                                     : p.isGuest 
                                                       ? 'text-amber-300' 
-                                                      : 'text-slate-100'
+                                                      : 'text-emerald-50'
                                                 }`}>
                                                   {p.name}
                                                 </span>
@@ -3079,7 +3085,7 @@ export default function App() {
                                             {/* Stars Badge - with 1-click admin adjustment */}
                                             <div className="flex items-center gap-2 shrink-0 ml-auto">
                                               {isAdmin ? (
-                                                <div className="flex items-center gap-1 bg-slate-950 border border-amber-500/40 hover:border-amber-400 px-2 py-1 rounded-xl shadow-sm transition-all">
+                                                <div className="flex items-center gap-1 bg-black border border-amber-500/40 hover:border-amber-400 px-2 py-1 rounded-xl shadow-sm transition-all">
                                                   <span className="text-[9px] font-black text-amber-400 uppercase hidden sm:inline tracking-tighter">
                                                     Nível:
                                                   </span>
@@ -3122,7 +3128,7 @@ export default function App() {
                                                   className={`text-[11px] tracking-tight px-2 py-0.5 rounded-lg border font-mono select-none transition-transform hover:scale-105 cursor-pointer ${
                                                     p.isGuest
                                                       ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                                                      : 'bg-slate-900 border-slate-700/60 text-sky-300'
+                                                      : 'bg-black border-emerald-900/60 text-emerald-300'
                                                   }`}
                                                   title={`Nível: ${SKILL_LEVEL_OPTIONS.find(o => o.level === p.level)?.label || 'Regular'} (Clique para gerenciar como Professor)`}
                                                 >
@@ -3184,19 +3190,19 @@ export default function App() {
               {absenceJustificationOpen && (
                 <div className="relative group">
                   <div className="absolute inset-0 rounded-[2rem] blur opacity-25 transition-opacity duration-500 bg-rose-500 group-hover:opacity-40"></div>
-                  <div className="relative bg-slate-900/90 backdrop-blur-xl border border-rose-500/30 rounded-[2rem] p-6 text-center shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="relative bg-[#03140a]/90 backdrop-blur-xl border border-rose-500/30 rounded-[2rem] p-6 text-center shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-left">
                       <h3 className="text-rose-300 font-black text-sm sm:text-base uppercase tracking-widest mb-1">
                         Não vai poder comparecer?
                       </h3>
-                      <p className="text-slate-400 text-xs font-medium">
+                      <p className="text-emerald-200/70 text-xs font-medium">
                         Avise os professores enviando sua justificativa de ausência.
                       </p>
                     </div>
                     <button 
                       type="button"
                       onClick={startJustificationFlow}
-                      className="w-full sm:w-auto bg-slate-850 hover:bg-slate-800 border border-rose-500/40 hover:border-rose-500 text-rose-300 hover:text-white font-black text-xs uppercase tracking-widest py-3 px-6 rounded-xl transition-all cursor-pointer shadow-sm"
+                      className="w-full sm:w-auto bg-black hover:bg-rose-950/60 border border-rose-500/40 hover:border-rose-500 text-rose-300 hover:text-white font-black text-xs uppercase tracking-widest py-3 px-6 rounded-xl transition-all cursor-pointer shadow-sm"
                     >
                       Justificar Ausência
                     </button>
@@ -3241,11 +3247,11 @@ export default function App() {
       )}
 
       {adminQuickLoginOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="bg-[#03140a] border border-emerald-500/40 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center">
                   <Lock className="w-4 h-4" />
                 </div>
                 <div>
@@ -3262,13 +3268,13 @@ export default function App() {
                   setQuickAdminPassword('');
                   setQuickAdminError('');
                 }}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                className="text-emerald-400 hover:text-white p-1 rounded-lg hover:bg-emerald-950 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-emerald-100/70 leading-relaxed">
               Autentique-se como professor para ajustar o nível de estrelas dos inscritos diretamente na página inicial com 1 clique.
             </p>
 
@@ -3280,7 +3286,7 @@ export default function App() {
                   onChange={(e) => setQuickAdminPassword(e.target.value)}
                   placeholder="Digite a senha de admin"
                   autoFocus
-                  className="w-full bg-slate-950 border border-slate-700/80 focus:border-amber-400 rounded-xl px-4 py-3 text-white text-center tracking-widest text-sm focus:outline-none transition-all placeholder:tracking-normal placeholder:text-slate-600"
+                  className="w-full bg-black border border-emerald-900/80 focus:border-amber-400 rounded-xl px-4 py-3 text-white text-center tracking-widest text-sm focus:outline-none transition-all placeholder:tracking-normal placeholder:text-emerald-800"
                 />
               </div>
 
@@ -3296,7 +3302,7 @@ export default function App() {
                     setQuickAdminPassword('');
                     setQuickAdminError('');
                   }}
-                  className="w-1/2 py-2.5 rounded-xl border border-slate-700 text-slate-400 font-bold text-xs uppercase hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="w-1/2 py-2.5 rounded-xl border border-emerald-900 text-emerald-300 font-bold text-xs uppercase hover:bg-emerald-950 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -3308,14 +3314,14 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="pt-2 border-t border-slate-800/80 text-center">
+              <div className="pt-2 border-t border-emerald-900/60 text-center">
                 <button
                   type="button"
                   onClick={() => {
                     setAdminQuickLoginOpen(false);
                     setView('adminLogin');
                   }}
-                  className="text-[11px] text-sky-400 hover:text-sky-300 hover:underline uppercase tracking-wide font-bold"
+                  className="text-[11px] text-emerald-400 hover:text-emerald-300 hover:underline uppercase tracking-wide font-bold"
                 >
                   Ir para a tela de Login do Painel Completo →
                 </button>
