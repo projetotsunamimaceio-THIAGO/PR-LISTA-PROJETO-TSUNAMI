@@ -159,6 +159,7 @@ export default function App() {
   const [students, setStudents] = useState<Student[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
+  const [studentJustifyFilter, setStudentJustifyFilter] = useState<'all' | 'authorized' | 'unauthorized'>('all');
 
   // Enrollments (Firebase)
   const [enrollments, setEnrollments] = useState<EnrollmentRecord[]>([]);
@@ -962,7 +963,7 @@ export default function App() {
   };
 
   const handleReset = async () => {
-    const newStudents = students.map(s => ({ ...s, isAllowed: true }));
+    const newStudents = students.map(s => ({ ...s, isAllowed: true, canJustify: false }));
     const newClasses = classes.map(c => ({ ...c, isOpen: true }));
     setStudents(newStudents);
     setClasses(newClasses);
@@ -994,7 +995,8 @@ export default function App() {
           id: `stu-${i}`,
           name: row[0].trim().replace(/^"|"$/g, ''),
           password: row[1] ? row[1].trim().replace(/^"|"$/g, '') : 'abc123',
-          isAllowed: true
+          isAllowed: true,
+          canJustify: false
         }));
         
         if (newStudents.length > 0) {
@@ -1003,7 +1005,13 @@ export default function App() {
           const mergedStudents = sortedStudents.map(newS => {
             const existing = students.find(oldS => oldS.name === newS.name);
             if (existing) {
-              return { ...newS, isAllowed: existing.isAllowed };
+              return { 
+                ...newS, 
+                isAllowed: existing.isAllowed,
+                canJustify: existing.canJustify ?? false,
+                skillLevel: existing.skillLevel ?? 3,
+                allowedClasses: existing.allowedClasses
+              };
             }
             return newS;
           });
@@ -1019,12 +1027,12 @@ export default function App() {
     }
     
     const fallbackStudents = [
-      { id: '1', name: 'ADRYAN ALVES', password: 'abc123', isAllowed: true },
-      { id: '2', name: 'ANA CLARA (IRMÃ MATEUS XEREBA) - 14', password: 'abc123', isAllowed: true },
-      { id: '3', name: 'ANA JÚLIA (IRMÃ DA GABI)', password: 'abc123', isAllowed: true },
-      { id: '4', name: 'ANDERSON RENAN - 15', password: 'abc123', isAllowed: true },
-      { id: '5', name: 'ANDREY ALVES DA SILVA', password: 'abc123', isAllowed: true },
-      { id: '6', name: 'ANTÔNIO MIGUEL SANTOS', password: 'abc123', isAllowed: true },
+      { id: '1', name: 'ADRYAN ALVES', password: 'abc123', isAllowed: true, canJustify: false },
+      { id: '2', name: 'ANA CLARA (IRMÃ MATEUS XEREBA) - 14', password: 'abc123', isAllowed: true, canJustify: false },
+      { id: '3', name: 'ANA JÚLIA (IRMÃ DA GABI)', password: 'abc123', isAllowed: true, canJustify: false },
+      { id: '4', name: 'ANDERSON RENAN - 15', password: 'abc123', isAllowed: true, canJustify: false },
+      { id: '5', name: 'ANDREY ALVES DA SILVA', password: 'abc123', isAllowed: true, canJustify: false },
+      { id: '6', name: 'ANTÔNIO MIGUEL SANTOS', password: 'abc123', isAllowed: true, canJustify: false },
     ];
     setStudents(fallbackStudents);
     saveConfig(fallbackStudents, classes);
@@ -1035,6 +1043,58 @@ export default function App() {
     const newStudents = students.map(s => s.id === id ? { ...s, isAllowed: allowed } : s);
     setStudents(newStudents);
     saveConfig(newStudents, classes);
+  };
+
+  const toggleStudentCanJustify = async (id: string, canJustify: boolean) => {
+    const newStudents = students.map(s => s.id === id ? { ...s, canJustify } : s);
+    setStudents(newStudents);
+    saveConfig(newStudents, classes);
+
+    const stName = students.find(s => s.id === id)?.name || 'Aluno';
+    try {
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Organização (Admin)',
+        action: 'changed',
+        details: `${canJustify ? 'Autorizou' : 'Revogou'} justificativa de ausência para: "${stName}"`,
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.error("Erro ao registrar log de justificativa", e);
+    }
+  };
+
+  const allowAllStudentsToJustify = async () => {
+    const newStudents = students.map(s => ({ ...s, canJustify: true }));
+    setStudents(newStudents);
+    saveConfig(newStudents, classes);
+
+    try {
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Organização (Admin)',
+        action: 'changed',
+        details: 'Autorizou TODOS os alunos a justificarem ausência',
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.error("Erro ao registrar log de justificativa", e);
+    }
+  };
+
+  const revokeAllStudentsJustify = async () => {
+    const newStudents = students.map(s => ({ ...s, canJustify: false }));
+    setStudents(newStudents);
+    saveConfig(newStudents, classes);
+
+    try {
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Organização (Admin)',
+        action: 'changed',
+        details: 'Revogou permissão de justificativa de TODOS os alunos',
+        timestamp: serverTimestamp()
+      });
+    } catch (e) {
+      console.error("Erro ao registrar log de justificativa", e);
+    }
   };
 
   const toggleStudentAllowedClass = (studentId: string, classId: string) => {
@@ -1067,9 +1127,13 @@ export default function App() {
     saveConfig(newStudents, classes);
   };
 
-  const filteredStudents = students.filter(s => 
-    s.name.toLowerCase().includes(studentSearch.toLowerCase())
-  );
+  const filteredStudents = students.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(studentSearch.toLowerCase());
+    if (!matchesSearch) return false;
+    if (studentJustifyFilter === 'authorized') return !!s.canJustify;
+    if (studentJustifyFilter === 'unauthorized') return !s.canJustify;
+    return true;
+  });
 
   const startStudentFlow = () => {
     setStudentStep(1);
@@ -1104,6 +1168,10 @@ export default function App() {
       setStudentFlowError('Você não tem permissão para acessar no momento.');
       return;
     }
+    if (flow === 'justification' && !student.canJustify) {
+      setStudentFlowError(`O aluno "${student.name}" não está autorizado pelo administrador a justificar ausência. Peça para o professor liberar sua autorização no painel.`);
+      return;
+    }
     setStudentFlowError('');
     setSelectedStudentId(id);
     if (flow === 'justification') {
@@ -1116,6 +1184,10 @@ export default function App() {
   const handleValidatePassword = (flow: 'enrollment' | 'justification' = 'enrollment') => {
     const student = students.find(s => s.id === selectedStudentId);
     if (!student) return;
+    if (flow === 'justification' && !student.canJustify) {
+      setStudentFlowError(`O aluno "${student.name}" não está autorizado pelo administrador a justificar ausência.`);
+      return;
+    }
     if (student.password === studentPasswordInput) {
       setStudentFlowError('');
       const existingEnrollment = enrollments.find(e => e.studentId === student.id);
@@ -1316,13 +1388,18 @@ export default function App() {
   const handleFinishJustification = async () => {
     if (!selectedStudentId) return;
 
+    const student = students.find(s => s.id === selectedStudentId);
+    if (!student || !student.canJustify) {
+      setStudentFlowError('Você não possui autorização da administração para enviar justificativa.');
+      return;
+    }
+
     if (absenceReason.trim() === '') {
       setStudentFlowError('Por favor, escreva a justificativa da sua ausência.');
       return;
     }
 
     try {
-      const student = students.find(s => s.id === selectedStudentId);
       const studentName = student?.name || 'Aluno Desconhecido';
       
       await setDoc(doc(db, "enrollments", selectedStudentId), {
@@ -1762,24 +1839,29 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="mb-6 pt-4 border-t border-white/10">
-                    <div className="flex justify-between items-center mb-3">
-                       <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                  <div className="mb-6 pt-4 border-t border-emerald-900/40">
+                    <div className="flex justify-between items-center mb-2">
+                       <h3 className="text-xs font-black uppercase tracking-wider text-emerald-200 flex items-center gap-2">
                          <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
                          Justificativa de Ausência
                        </h3>
+                       <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                         {students.filter(s => s.canJustify).length} Autorizado(s)
+                       </span>
                     </div>
                     <button 
                       onClick={toggleAbsenceJustification}
                       className={`w-full font-black text-xs uppercase tracking-wider py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
                         absenceJustificationOpen 
                           ? 'bg-emerald-400 hover:bg-emerald-300 text-slate-950 shadow-[0_4px_14px_0_rgba(16,185,129,0.35)]' 
-                          : 'bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-white/10'
+                          : 'bg-[#020d06] hover:bg-[#03140a] text-slate-300 border border-emerald-900/60'
                       }`}
                     >
-                      {absenceJustificationOpen ? '✓ Botão de Justificar: ABERTO' : '✕ Botão de Justificar: FECHADO'}
+                      {absenceJustificationOpen ? '✓ Aba de Justificar: ABERTA' : '✕ Aba de Justificar: FECHADA'}
                     </button>
-                    <p className="text-[11px] text-slate-400 mt-2 text-center">Permite que o aluno avise e justifique que não vai poder treinar</p>
+                    <p className="text-[11px] text-emerald-300/70 mt-2 text-center leading-relaxed">
+                      Apenas alunos que você <strong className="text-white">autorizar individualmente</strong> na lista abaixo poderão enviar justificativa.
+                    </p>
                   </div>
                   
                   <div className="pt-4 border-t border-white/10">
@@ -1887,31 +1969,82 @@ export default function App() {
                 </div>
 
                 {/* Liberação de Alunos */}
-                <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-6 flex flex-col h-[550px] shadow-lg shadow-black/10">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div className="bg-[#03140a]/90 backdrop-blur-md border border-emerald-500/30 rounded-3xl p-6 flex flex-col h-[600px] shadow-lg shadow-black/40">
+                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
                     <div className="flex items-center gap-2">
                       <div className="w-1.5 h-5 bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                      <h3 className="text-base md:text-lg font-black text-white tracking-tight uppercase">Controle de Alunos & Acessos</h3>
+                      <div>
+                        <h3 className="text-base md:text-lg font-black text-white tracking-tight uppercase">Controle de Alunos & Acessos</h3>
+                        <p className="text-[11px] text-emerald-300/70">Gerencie inscrições, níveis técnicos e quem pode justificar ausência</p>
+                      </div>
                     </div>
-                    <div className="flex gap-2 w-full sm:w-auto">
-                      <button onClick={allowAllStudents} className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center cursor-pointer">
+                    <div className="flex flex-wrap gap-1.5 w-full lg:w-auto">
+                      <button onClick={allowAllStudents} className="px-2.5 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center cursor-pointer" title="Permite que todos os alunos acessem o app">
                         Liberar Todos
                       </button>
-                      <button onClick={blockAllStudents} className="flex-1 sm:flex-none px-3.5 py-2 bg-rose-950/40 hover:bg-rose-900/40 text-rose-300 border border-rose-900/50 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center cursor-pointer">
+                      <button onClick={blockAllStudents} className="px-2.5 py-1.5 bg-rose-950/40 hover:bg-rose-900/40 text-rose-300 border border-rose-900/50 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center cursor-pointer" title="Bloqueia acesso geral de todos os alunos">
                         Bloquear Todos
+                      </button>
+                      <button onClick={allowAllStudentsToJustify} className="px-2.5 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center cursor-pointer flex items-center gap-1 shadow-sm" title="Autoriza todos os alunos a enviarem justificativa de falta">
+                        <span>✓ Autorizar Justificar (Todos)</span>
+                      </button>
+                      <button onClick={revokeAllStudentsJustify} className="px-2.5 py-1.5 bg-black/70 hover:bg-black text-emerald-400/70 border border-emerald-900/60 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center cursor-pointer" title="Revoga autorização de justificativa de todos os alunos">
+                        <span>✕ Bloquear Justificar (Todos)</span>
                       </button>
                     </div>
                   </div>
                   
-                  <div className="relative mb-5 shrink-0">
-                    <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input 
-                      type="text" 
-                      placeholder="Pesquisar aluno por nome..." 
-                      value={studentSearch}
-                      onChange={(e) => setStudentSearch(e.target.value)}
-                      className="w-full bg-slate-950/80 border border-white/10 rounded-2xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
-                    />
+                  {/* Search and Filters */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-4 shrink-0">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600" />
+                      <input 
+                        type="text" 
+                        placeholder="Pesquisar aluno por nome..." 
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                        className="w-full bg-black/80 border border-emerald-900/60 rounded-2xl pl-11 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-400 transition-colors placeholder:text-emerald-800"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1 bg-black/80 p-1 rounded-xl border border-emerald-900/60 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setStudentJustifyFilter('all')}
+                        className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                          studentJustifyFilter === 'all'
+                            ? 'bg-emerald-500 text-black shadow-sm'
+                            : 'text-emerald-400/70 hover:text-white'
+                        }`}
+                      >
+                        Todos ({students.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStudentJustifyFilter('authorized')}
+                        className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
+                          studentJustifyFilter === 'authorized'
+                            ? 'bg-rose-500 text-white shadow-sm'
+                            : 'text-rose-300 hover:text-rose-200'
+                        }`}
+                      >
+                        <span>Liberados para Justificar</span>
+                        <span className="bg-rose-950/60 px-1 rounded text-[9px] font-mono">
+                          {students.filter(s => s.canJustify).length}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStudentJustifyFilter('unauthorized')}
+                        className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                          studentJustifyFilter === 'unauthorized'
+                            ? 'bg-emerald-950 text-emerald-200 border border-emerald-800/60 shadow-sm'
+                            : 'text-emerald-500/70 hover:text-white'
+                        }`}
+                      >
+                        Sem Autorização ({students.filter(s => !s.canJustify).length})
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
@@ -1919,18 +2052,31 @@ export default function App() {
                       <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 p-4">
                         <p className="text-sm">Nenhum aluno sincronizado ainda.</p>
                       </div>
+                    ) : filteredStudents.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center text-emerald-500/70 p-4 bg-black/40 rounded-2xl border border-emerald-900/40">
+                        <p className="text-xs font-bold uppercase tracking-wider">
+                          Nenhum aluno encontrado para este filtro/busca.
+                        </p>
+                      </div>
                     ) : (
                       filteredStudents.map(student => (
-                        <div key={student.id} className={`border rounded-2xl p-4 flex flex-col gap-3 transition-colors ${student.isAllowed ? 'bg-slate-950/70 border-white/10 hover:border-cyan-500/30' : 'bg-rose-950/20 border-rose-900/40'}`}>
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div key={student.id} className={`border rounded-2xl p-4 flex flex-col gap-3 transition-colors ${student.isAllowed ? 'bg-[#020d06] border-emerald-900/60 hover:border-emerald-700/80' : 'bg-rose-950/20 border-rose-900/40'}`}>
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                             <div>
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 <h4 className={`font-black text-sm tracking-tight uppercase line-clamp-1 ${student.isAllowed ? 'text-white' : 'text-rose-300/60'}`} title={student.name}>
                                   {student.name}
                                 </h4>
+
+                                {student.canJustify && (
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1 shadow-sm">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                                    Pode Justificar
+                                  </span>
+                                )}
                                 
                                 {/* 1-Click Star Selector for Professor */}
-                                <div className="flex items-center gap-1 bg-slate-900/90 border border-amber-400/30 px-2 py-0.5 rounded-lg w-fit">
+                                <div className="flex items-center gap-1 bg-black/90 border border-amber-400/30 px-2 py-0.5 rounded-lg w-fit">
                                   <span className="text-[9px] font-black uppercase text-amber-400 mr-0.5">
                                     Nível:
                                   </span>
@@ -1960,27 +2106,57 @@ export default function App() {
                                   </span>
                                 </div>
                               </div>
-                              <p className="text-slate-400 text-[10px] mt-1 font-mono">SENHA: {student.password}</p>
+                              <p className="text-emerald-400/60 text-[10px] mt-1 font-mono">SENHA: {student.password}</p>
                             </div>
-                            <div className="flex bg-slate-900 rounded-xl p-1 gap-1 shrink-0 border border-white/10">
-                              <button 
-                                onClick={() => toggleStudentAllowed(student.id, true)}
-                                className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${student.isAllowed ? 'bg-emerald-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+
+                            <div className="flex flex-wrap items-center gap-2 shrink-0">
+                              {/* Enrollment Access */}
+                              <div className="flex bg-black/80 rounded-xl p-1 gap-1 border border-emerald-900/60">
+                                <button 
+                                  onClick={() => toggleStudentAllowed(student.id, true)}
+                                  className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${student.isAllowed ? 'bg-emerald-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                                  title="Liberar inscrição e acesso do aluno"
+                                >
+                                  Liberar
+                                </button>
+                                <button 
+                                  onClick={() => toggleStudentAllowed(student.id, false)}
+                                  className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${!student.isAllowed ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                                  title="Bloquear inscrição do aluno"
+                                >
+                                  Bloquear
+                                </button>
+                              </div>
+
+                              {/* Individual Justification Authorization */}
+                              <button
+                                type="button"
+                                onClick={() => toggleStudentCanJustify(student.id, !student.canJustify)}
+                                className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border cursor-pointer ${
+                                  student.canJustify
+                                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.25)]'
+                                    : 'bg-black/80 text-emerald-400/50 border-emerald-900/60 hover:text-emerald-200 hover:border-emerald-700/60'
+                                }`}
+                                title={student.canJustify ? "Clique para revogar autorização de justificativa deste aluno" : "Clique para autorizar este aluno a justificar falta"}
                               >
-                                Liberar
-                              </button>
-                              <button 
-                                onClick={() => toggleStudentAllowed(student.id, false)}
-                                className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${!student.isAllowed ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
-                              >
-                                Bloquear
+                                {student.canJustify ? (
+                                  <>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                                    <span>Justificar: Liberado ✓</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Lock className="w-3 h-3 text-emerald-600/70" />
+                                    <span>Justificar: Bloqueado</span>
+                                  </>
+                                )}
                               </button>
                             </div>
                           </div>
                           
                           {student.isAllowed && (
-                            <div className="pt-3 border-t border-white/10 flex flex-col gap-2">
-                              <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider">Turmas Permitidas:</p>
+                            <div className="pt-3 border-t border-emerald-900/40 flex flex-col gap-2">
+                              <p className="text-[10px] uppercase font-black text-emerald-400/70 tracking-wider">Turmas Permitidas:</p>
                               <div className="flex flex-wrap gap-1.5">
                                 {classes.map(c => {
                                    const isChecked = student.allowedClasses ? student.allowedClasses.includes(c.id) : true;
@@ -1988,7 +2164,7 @@ export default function App() {
                                      <button 
                                        key={c.id} 
                                        onClick={() => toggleStudentAllowedClass(student.id, c.id)}
-                                       className={`px-2.5 py-1 border rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer ${isChecked ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-900 text-slate-500 border-white/5'}`}
+                                       className={`px-2.5 py-1 border rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer ${isChecked ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-black/60 text-slate-500 border-emerald-900/40'}`}
                                      >
                                        <div className={`w-3 h-3 rounded-sm flex items-center justify-center border ${isChecked ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'}`}>
                                          {isChecked && <Check className="w-2 h-2 text-slate-950 font-bold" />}
@@ -2603,10 +2779,26 @@ export default function App() {
                     Passo 01 de 03 • Ausência
                   </span>
                   <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">Justificar Falta</h1>
-                  <p className="text-emerald-100/70 text-sm mt-1">Selecione seu nome para enviar sua justificativa à organização.</p>
+                  <p className="text-emerald-100/70 text-sm mt-1">Apenas alunos autorizados individualmente pela administração podem justificar.</p>
+                  <div className="mt-2.5 flex items-center justify-center gap-2">
+                    <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 inline-flex items-center gap-1.5 shadow-sm">
+                      <ShieldCheck className="w-3 h-3 text-rose-400" />
+                      {students.filter(s => s.isAllowed && s.canJustify).length} aluno(s) autorizado(s) no momento
+                    </span>
+                  </div>
                 </div>
                 
                 <div className="w-full bg-[#03140a]/90 backdrop-blur-2xl rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col border border-emerald-500/25">
+                  {students.filter(s => s.isAllowed && s.canJustify).length === 0 && (
+                    <div className="p-3.5 bg-rose-950/30 border border-rose-500/30 rounded-2xl text-xs text-rose-300 mb-4 flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block font-black uppercase">Nenhum aluno autorizado</strong>
+                        <span>O administrador ainda não autorizou nenhum aluno para justificar falta. Peça para o professor liberar seu nome no painel.</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="relative mb-5 shrink-0">
                     <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600" />
                     <input 
@@ -2620,21 +2812,68 @@ export default function App() {
                   </div>
 
                   <div className="flex-1 max-h-[350px] overflow-y-auto custom-scrollbar pr-2 space-y-2">
-                    {students.filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase())).map(s => (
-                      <button 
-                        key={s.id}
-                        onClick={() => handleSelectStudent(s.id, 'justification')}
-                        className="w-full text-left bg-black/60 hover:bg-rose-950/30 border border-emerald-900/50 hover:border-rose-500/40 rounded-2xl p-4 transition-all hover:translate-x-1 flex items-center justify-between cursor-pointer"
-                      >
-                        <span className="text-sm font-black uppercase tracking-tight text-emerald-50">{s.name}</span>
-                        <ChevronRight className="w-4 h-4 text-emerald-600" />
-                      </button>
-                    ))}
-                    {students.filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase())).length === 0 && (
-                       <p className="text-center text-emerald-500 text-sm py-8">Nenhum atleta encontrado.</p>
-                    )}
+                    {(() => {
+                      const matched = students
+                        .filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase()))
+                        .sort((a, b) => {
+                          if (a.canJustify && !b.canJustify) return -1;
+                          if (!a.canJustify && b.canJustify) return 1;
+                          return a.name.localeCompare(b.name);
+                        });
+
+                      if (matched.length === 0) {
+                        return <p className="text-center text-emerald-500 text-sm py-8">Nenhum atleta encontrado.</p>;
+                      }
+
+                      return matched.map(s => {
+                        if (s.canJustify) {
+                          return (
+                            <button 
+                              key={s.id}
+                              onClick={() => handleSelectStudent(s.id, 'justification')}
+                              className="w-full text-left bg-black/75 hover:bg-rose-950/40 border border-rose-500/40 hover:border-rose-400 rounded-2xl p-4 transition-all hover:translate-x-1 flex items-center justify-between cursor-pointer group shadow-sm"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-7 h-7 rounded-full bg-rose-500/25 border border-rose-500/50 text-rose-300 flex items-center justify-center text-xs font-black shrink-0">
+                                  ✓
+                                </div>
+                                <div className="truncate">
+                                  <span className="text-sm font-black uppercase tracking-tight text-white block truncate">{s.name}</span>
+                                  <span className="text-[10px] font-bold uppercase text-rose-300/80">Autorizado pelo Admin</span>
+                                </div>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-rose-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <div 
+                            key={s.id}
+                            onClick={() => {
+                              setStudentFlowError(`O aluno "${s.name}" não está autorizado pelo administrador a justificar ausência. Peça para o professor liberar sua autorização no painel.`);
+                            }}
+                            className="w-full text-left bg-black/40 border border-emerald-950/60 rounded-2xl p-3.5 flex items-center justify-between opacity-55 hover:opacity-85 transition-all cursor-pointer"
+                            title="Sem autorização do administrador"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-7 h-7 rounded-full bg-black border border-emerald-900/60 text-emerald-600 flex items-center justify-center text-xs font-black shrink-0">
+                                <Lock className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="truncate">
+                                <span className="text-sm font-bold uppercase tracking-tight text-emerald-400/60 block truncate">{s.name}</span>
+                                <span className="text-[10px] font-bold uppercase text-emerald-600">Sem autorização individual</span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] uppercase font-mono font-bold text-rose-400/70 bg-rose-950/30 px-2 py-0.5 rounded-lg border border-rose-900/40 shrink-0">
+                              Bloqueado
+                            </span>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
-                  {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mt-4 bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">{studentFlowError}</p>}
+                  {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mt-4 bg-rose-500/10 border border-rose-500/20 py-2.5 px-3 rounded-xl">{studentFlowError}</p>}
                 </div>
 
                 <button 
@@ -3192,17 +3431,22 @@ export default function App() {
                   <div className="absolute inset-0 rounded-[2rem] blur opacity-25 transition-opacity duration-500 bg-rose-500 group-hover:opacity-40"></div>
                   <div className="relative bg-[#03140a]/90 backdrop-blur-xl border border-rose-500/30 rounded-[2rem] p-6 text-center shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-left">
-                      <h3 className="text-rose-300 font-black text-sm sm:text-base uppercase tracking-widest mb-1">
-                        Não vai poder comparecer?
-                      </h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-rose-300 font-black text-sm sm:text-base uppercase tracking-widest">
+                          Não vai poder comparecer?
+                        </h3>
+                        <span className="bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
+                          Liberação Individual
+                        </span>
+                      </div>
                       <p className="text-emerald-200/70 text-xs font-medium">
-                        Avise os professores enviando sua justificativa de ausência.
+                        Envie sua justificativa de ausência (liberada individualmente pelo administrador).
                       </p>
                     </div>
                     <button 
                       type="button"
                       onClick={startJustificationFlow}
-                      className="w-full sm:w-auto bg-black hover:bg-rose-950/60 border border-rose-500/40 hover:border-rose-500 text-rose-300 hover:text-white font-black text-xs uppercase tracking-widest py-3 px-6 rounded-xl transition-all cursor-pointer shadow-sm"
+                      className="w-full sm:w-auto bg-black hover:bg-rose-950/60 border border-rose-500/40 hover:border-rose-500 text-rose-300 hover:text-white font-black text-xs uppercase tracking-widest py-3 px-6 rounded-xl transition-all cursor-pointer shadow-sm shrink-0"
                     >
                       Justificar Ausência
                     </button>

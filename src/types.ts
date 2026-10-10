@@ -8,6 +8,7 @@ export interface Student {
   allowedClasses?: string[];
   classLevels?: Record<string, number>;
   skillLevel?: number;
+  canJustify?: boolean;
 }
 
 export interface EnrollmentRecord {
