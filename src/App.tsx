@@ -70,7 +70,36 @@ interface Student {
   allowedClasses?: string[];
   classLevels?: Record<string, number>;
   skillLevel?: number;
+  canJustify?: boolean;
 }
+
+export const sanitizeStudent = (s: Student): Student => {
+  const clean: Student = {
+    id: s.id,
+    name: (s.name || '').trim(),
+    isAllowed: s.isAllowed !== undefined ? !!s.isAllowed : true,
+    canJustify: s.canJustify !== undefined ? !!s.canJustify : false,
+  };
+  if (s.password && s.password.trim() !== '') {
+    clean.password = s.password.trim();
+  }
+  if (s.skillLevel !== undefined && !isNaN(s.skillLevel)) {
+    clean.skillLevel = s.skillLevel;
+  }
+  if (s.behaviorScore !== undefined && !isNaN(s.behaviorScore)) {
+    clean.behaviorScore = s.behaviorScore;
+  }
+  if (Array.isArray(s.infractions) && s.infractions.length > 0) {
+    clean.infractions = s.infractions.filter(Boolean);
+  }
+  if (Array.isArray(s.allowedClasses) && s.allowedClasses.length > 0) {
+    clean.allowedClasses = s.allowedClasses.filter(Boolean);
+  }
+  if (s.classLevels && typeof s.classLevels === 'object' && Object.keys(s.classLevels).length > 0) {
+    clean.classLevels = s.classLevels;
+  }
+  return clean;
+};
 
 interface EnrollmentRecord {
   studentId: string;
@@ -158,6 +187,7 @@ export default function App() {
   // Students & Sync
   const [students, setStudents] = useState<Student[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
   const [studentJustifyFilter, setStudentJustifyFilter] = useState<'all' | 'authorized' | 'unauthorized'>('all');
 
@@ -296,8 +326,9 @@ export default function App() {
 
   const saveConfig = async (newStudents: Student[], newClasses: ClassItem[]) => {
     try {
+      const sanitizedStudents = newStudents.map(sanitizeStudent);
       await setDoc(doc(db, "config", "settings"), {
-        students: newStudents,
+        students: sanitizedStudents,
         classes: newClasses,
         activeDay: activeDay,
         updatedAt: serverTimestamp()
@@ -484,7 +515,7 @@ export default function App() {
         }, { merge: true });
 
         await setDoc(doc(db, "config", "settings"), {
-          students: updatedStudents,
+          students: updatedStudents.map(sanitizeStudent),
           updatedAt: serverTimestamp()
         }, { merge: true });
 
@@ -880,6 +911,7 @@ export default function App() {
   };
 
   const totalStudents = students.length;
+  const allowedStudentsCount = students.filter(s => s.isAllowed).length;
 
   const handleLogin = (e: FormEvent) => {
     e.preventDefault();
@@ -984,59 +1016,120 @@ export default function App() {
 
   const handleSync = async () => {
     setIsSyncing(true);
+    setSyncStatus(null);
     const sheetId = '16vWfNpeoVaKPdaVTILFksyN0e4i2QG2BFFB8OH9vhyA';
     
     try {
-      const res = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`);
-      if (res.ok) {
-        const text = await res.text();
-        const rows = text.split(/\r?\n/).map(r => r.split(','));
-        const newStudents: Student[] = rows.slice(1).filter(r => r[0]).map((row, i) => ({
+      // Add timestamp and cache: 'no-store' to guarantee fresh data without browser or CDN cache
+      const res = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&t=${Date.now()}`, {
+        cache: 'no-store'
+      });
+      if (!res.ok) {
+        throw new Error(`Falha ao obter planilha (status: ${res.status})`);
+      }
+
+      const text = await res.text();
+      const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+
+      // Parse CSV line respecting quotes
+      const parsedRows: string[][] = lines.map(line => {
+        const result: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        result.push(current.trim());
+        return result;
+      });
+
+      // Filter out header line (e.g. "nome", "senha") and empty rows
+      const studentRows = parsedRows.filter((r, idx) => {
+        if (idx === 0 && r[0]?.toLowerCase().includes('nome')) return false;
+        const name = r[0]?.replace(/^"|"$/g, '').trim();
+        return name && name.length > 0 && !name.toLowerCase().startsWith('nome');
+      });
+
+      if (studentRows.length === 0) {
+        throw new Error('Nenhum aluno encontrado na planilha.');
+      }
+
+      const newStudents: Student[] = studentRows.map((row, i) => {
+        const rawName = row[0].replace(/^"|"$/g, '').trim();
+        const rawPassword = row[1] ? row[1].replace(/^"|"$/g, '').trim() : 'abc123';
+        return {
           id: `stu-${i}`,
-          name: row[0].trim().replace(/^"|"$/g, ''),
-          password: row[1] ? row[1].trim().replace(/^"|"$/g, '') : 'abc123',
+          name: rawName,
+          password: rawPassword || 'abc123',
           isAllowed: true,
           canJustify: false
-        }));
-        
-        if (newStudents.length > 0) {
-          const sortedStudents = newStudents.sort((a, b) => a.name.localeCompare(b.name));
-          
-          const mergedStudents = sortedStudents.map(newS => {
-            const existing = students.find(oldS => oldS.name === newS.name);
-            if (existing) {
-              return { 
-                ...newS, 
-                isAllowed: existing.isAllowed,
-                canJustify: existing.canJustify ?? false,
-                skillLevel: existing.skillLevel ?? 3,
-                allowedClasses: existing.allowedClasses
-              };
-            }
-            return newS;
-          });
+        };
+      });
 
-          setStudents(mergedStudents);
-          saveConfig(mergedStudents, classes);
-          setIsSyncing(false);
-          return;
+      // Match against existing students by name (case-insensitive and trimmed)
+      const mergedStudents = newStudents.map(newS => {
+        const existing = students.find(
+          oldS => oldS.name.trim().toLowerCase() === newS.name.trim().toLowerCase()
+        );
+        if (existing) {
+          return sanitizeStudent({
+            ...newS,
+            id: existing.id, // Preserve established ID so existing enrollments and logs remain linked
+            password: newS.password || existing.password || 'abc123',
+            isAllowed: existing.isAllowed ?? true,
+            canJustify: existing.canJustify ?? false,
+            skillLevel: existing.skillLevel ?? 3,
+            allowedClasses: existing.allowedClasses,
+            behaviorScore: existing.behaviorScore,
+            infractions: existing.infractions,
+            classLevels: existing.classLevels
+          });
         }
+        return sanitizeStudent(newS);
+      });
+
+      // Sort alphabetically by name
+      const sortedStudents = mergedStudents.sort((a, b) => a.name.localeCompare(b.name));
+
+      setStudents(sortedStudents);
+      await saveConfig(sortedStudents, classes);
+
+      // Log the successful sync to activity_logs
+      try {
+        await addDoc(collection(db, "activity_logs"), {
+          studentName: 'Professor (Admin)',
+          action: 'changed',
+          details: `Sincronizou a planilha do Google Sheets com sucesso (${sortedStudents.length} alunos cadastrados)`,
+          timestamp: serverTimestamp()
+        });
+      } catch (logErr) {
+        console.warn('Erro ao salvar log de sincronia', logErr);
       }
-    } catch (e) {
-      console.error("Fetch falhou, usando dados de fallback", e);
+
+      setSyncStatus({
+        message: `Sincronizado com sucesso! ${sortedStudents.length} alunos salvos no banco.`,
+        type: 'success'
+      });
+      setTimeout(() => setSyncStatus(null), 5000);
+      setIsSyncing(false);
+      return;
+    } catch (e: any) {
+      console.error("Erro ao sincronizar com Google Sheets:", e);
+      setSyncStatus({
+        message: `Falha na sincronização: ${e.message || 'Verifique a conexão'}. Dados atuais mantidos.`,
+        type: 'error'
+      });
+      setTimeout(() => setSyncStatus(null), 6000);
+      setIsSyncing(false);
     }
-    
-    const fallbackStudents = [
-      { id: '1', name: 'ADRYAN ALVES', password: 'abc123', isAllowed: true, canJustify: false },
-      { id: '2', name: 'ANA CLARA (IRMÃ MATEUS XEREBA) - 14', password: 'abc123', isAllowed: true, canJustify: false },
-      { id: '3', name: 'ANA JÚLIA (IRMÃ DA GABI)', password: 'abc123', isAllowed: true, canJustify: false },
-      { id: '4', name: 'ANDERSON RENAN - 15', password: 'abc123', isAllowed: true, canJustify: false },
-      { id: '5', name: 'ANDREY ALVES DA SILVA', password: 'abc123', isAllowed: true, canJustify: false },
-      { id: '6', name: 'ANTÔNIO MIGUEL SANTOS', password: 'abc123', isAllowed: true, canJustify: false },
-    ];
-    setStudents(fallbackStudents);
-    saveConfig(fallbackStudents, classes);
-    setIsSyncing(false);
   };
 
   const toggleStudentAllowed = (id: string, allowed: boolean) => {
@@ -1570,6 +1663,23 @@ export default function App() {
                     <Trash2 className="w-4 h-4" /> Resetar Inscrições
                   </button>
                 </div>
+
+                {/* Sync Status Banner */}
+                {syncStatus && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className={`mt-4 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 border ${
+                      syncStatus.type === 'success'
+                        ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+                        : 'bg-rose-950/90 text-rose-200 border-rose-500/50'
+                    }`}
+                  >
+                    <span>{syncStatus.type === 'success' ? '✅' : '⚠️'}</span>
+                    <span>{syncStatus.message}</span>
+                  </motion.div>
+                )}
               </div>
 
               {/* Header (Right) - Stats & Mode Switch */}
@@ -2316,7 +2426,32 @@ export default function App() {
                 </div>
                 
                 <div className="w-full bg-[#03140a]/90 backdrop-blur-2xl rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col border border-emerald-500/25">
-                  <div className="relative mb-5 shrink-0">
+                  {/* Total de alunos na lista */}
+                  <div className="mb-5 bg-gradient-to-r from-emerald-950/80 to-[#021308] border border-emerald-500/30 rounded-2xl p-3.5 flex items-center justify-between shadow-lg">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-white font-black text-xs uppercase tracking-wider">
+                          Lista Oficial de Alunos
+                        </p>
+                        <p className="text-emerald-400/70 text-[11px]">
+                          Alunos disponíveis para inscrição
+                        </p>
+                      </div>
+                    </div>
+                    <div className="bg-emerald-500/20 border border-emerald-500/40 px-3 py-1.5 rounded-xl text-right">
+                      <span className="text-emerald-300 font-black text-base font-mono block leading-none">
+                        {allowedStudentsCount}
+                      </span>
+                      <span className="text-[9px] text-emerald-400/80 uppercase tracking-widest font-bold">
+                        {allowedStudentsCount === 1 ? 'aluno na lista' : 'alunos na lista'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="relative mb-3 shrink-0">
                     <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600" />
                     <input 
                       type="text" 
@@ -2335,6 +2470,19 @@ export default function App() {
                         <X className="w-4 h-4" />
                       </button>
                     )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] font-bold text-emerald-400/70 mb-3 px-1">
+                    <span>
+                      {studentSearchInput.trim() ? (
+                        <>Resultados da busca: <strong className="text-white">{students.filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase())).length}</strong></>
+                      ) : (
+                        'Selecione seu nome na lista:'
+                      )}
+                    </span>
+                    <span className="font-mono">
+                      Total na lista: <strong className="text-emerald-300">{allowedStudentsCount}</strong>
+                    </span>
                   </div>
                   
                   {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center mb-4 p-2 bg-rose-500/10 border border-rose-500/20 rounded-xl">{studentFlowError}</p>}
@@ -2358,7 +2506,14 @@ export default function App() {
                       </button>
                     ))}
                     {students.filter(s => s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase())).length === 0 && (
-                       <p className="text-center text-emerald-300/60 text-sm py-8">Nenhum atleta encontrado com este nome.</p>
+                      <div className="text-center text-emerald-300/60 text-sm py-8 space-y-2">
+                        <p>Nenhum atleta encontrado com este nome.</p>
+                        {students.some(s => !s.isAllowed && s.name.toLowerCase().includes(studentSearchInput.toLowerCase())) && (
+                          <p className="text-xs text-rose-300 font-bold bg-rose-950/40 border border-rose-900/50 p-2.5 rounded-xl">
+                            ⚠️ Seu nome consta no cadastro, porém está temporariamente bloqueado para inscrições pelo administrador.
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -3122,6 +3277,20 @@ export default function App() {
                         <span>Fazer Inscrição Agora</span>
                         <ArrowRight className="w-5 h-5 text-slate-950 stroke-[2.5]" />
                       </button>
+
+                      {/* Total de alunos na lista */}
+                      <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-300 bg-black/60 py-2.5 px-3.5 rounded-xl border border-emerald-900/50 shadow-inner">
+                        <Users className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>
+                          <strong className="text-white font-black">{allowedStudentsCount}</strong> {allowedStudentsCount === 1 ? 'aluno na lista' : 'alunos na lista'}
+                        </span>
+                        {totalStudents > allowedStudentsCount && (
+                          <span className="text-emerald-400/60 font-mono text-[11px]">
+                            ({totalStudents} total)
+                          </span>
+                        )}
+                      </div>
+
                       <p className="text-[11px] text-emerald-400/80 uppercase tracking-widest font-semibold">
                         Rápido e seguro em 3 passos
                       </p>
