@@ -40,6 +40,7 @@ interface SaturdaySportModalProps {
   onUpdateParticipantLevel: (classId: string, participant: Participant, newLevel: number) => Promise<void>;
   onOpenDrawModal: (classId: string) => void;
   savedDraws: Record<string, DrawResult>;
+  cellTime?: string;
 }
 
 export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
@@ -56,7 +57,8 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
   onAddGuestToClass,
   onUpdateParticipantLevel,
   onOpenDrawModal,
-  savedDraws
+  savedDraws,
+  cellTime
 }) => {
   // Select first class by default
   const [selectedClassId, setSelectedClassId] = useState<string>(() => {
@@ -187,6 +189,12 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                 <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
                   Inclusão Direta & Sorteio
                 </span>
+                {cellTime && (
+                  <span className="bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 font-mono">
+                    <span>🕊️ Célula:</span>
+                    <span>{cellTime}</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs text-emerald-200/70 mt-0.5 max-w-2xl hidden sm:block">
                 No sábado ninguém se inscreve pelo app. Escolha a turma, clique nos alunos ou inclua convidados para realizar o sorteio de linhas equilibrado.

@@ -24,6 +24,8 @@ export interface EnrollmentRecord {
   updatedAt: number;
   justifiedAbsence?: boolean;
   absenceReason?: string;
+  enrolledInCell?: boolean;
+  cellTime?: string;
 }
 
 export interface ActivityLog {

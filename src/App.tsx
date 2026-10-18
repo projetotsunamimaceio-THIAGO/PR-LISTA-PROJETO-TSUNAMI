@@ -26,7 +26,8 @@ import {
   Flame,
   CheckCircle2,
   Sliders,
-  UserCheck
+  UserCheck,
+  Clock
 } from "lucide-react";
 import { doc, setDoc, getDocs, deleteDoc, onSnapshot, collection, serverTimestamp, addDoc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "./lib/firebase";
@@ -114,6 +115,8 @@ interface EnrollmentRecord {
   updatedAt: number;
   justifiedAbsence?: boolean;
   absenceReason?: string;
+  enrolledInCell?: boolean;
+  cellTime?: string;
 }
 
 interface ActivityLog {
@@ -198,8 +201,14 @@ export default function App() {
   const [absenceJustificationOpen, setAbsenceJustificationOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string>('');
 
+  // Célula (Reunião Evangelística) State
+  const [cellTime, setCellTime] = useState<string>('17:00');
+  const [cellConfirmed, setCellConfirmed] = useState<boolean>(true);
+  const [isSavingCellTime, setIsSavingCellTime] = useState<boolean>(false);
+  const [cellTimeSuccess, setCellTimeSuccess] = useState<boolean>(false);
+
   // Student Flow State (Enrollment)
-  const [studentStep, setStudentStep] = useState<1 | 2 | 3>(1);
+  const [studentStep, setStudentStep] = useState<1 | 2 | 3 | 4>(1);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [studentPasswordInput, setStudentPasswordInput] = useState('');
   const [studentSearchInput, setStudentSearchInput] = useState('');
@@ -273,6 +282,9 @@ export default function App() {
         if (data.teamDraws !== undefined) {
           setSavedDraws(data.teamDraws);
         }
+        if (data.cellTime !== undefined) {
+          setCellTime(data.cellTime);
+        }
       }
     });
     return () => unsubscribe();
@@ -296,6 +308,8 @@ export default function App() {
           updatedAt: data.updatedAt?.toMillis?.() || Date.now(),
           justifiedAbsence: data.justifiedAbsence || false,
           absenceReason: data.absenceReason || '',
+          enrolledInCell: data.enrolledInCell !== undefined ? data.enrolledInCell : true,
+          cellTime: data.cellTime || '',
         });
       });
       setEnrollments(newEnrollments);
@@ -331,11 +345,43 @@ export default function App() {
         students: sanitizedStudents,
         classes: newClasses,
         activeDay: activeDay,
+        cellTime: cellTime,
         updatedAt: serverTimestamp()
       }, { merge: true });
     } catch (e) {
       console.error("Erro ao salvar config no Firebase", e);
     }
+  };
+
+  const handleSaveCellTime = async (newTime: string) => {
+    const trimmed = (newTime || '').trim();
+    if (!trimmed) return;
+    setCellTime(trimmed);
+    setIsSavingCellTime(true);
+    try {
+      await setDoc(doc(db, "config", "settings"), {
+        cellTime: trimmed,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      setCellTimeSuccess(true);
+      setTimeout(() => setCellTimeSuccess(false), 3000);
+    } catch (e) {
+      console.error("Erro ao salvar horário da célula", e);
+    } finally {
+      setIsSavingCellTime(false);
+    }
+  };
+
+  const handleOpenAllClasses = () => {
+    const updated = classes.map(c => ({ ...c, isOpen: true }));
+    setClasses(updated);
+    saveConfig(students, updated);
+  };
+
+  const handleCloseAllClasses = () => {
+    const updated = classes.map(c => ({ ...c, isOpen: false }));
+    setClasses(updated);
+    saveConfig(students, updated);
   };
 
   const toggleEnrollmentsLocked = async () => {
@@ -1432,24 +1478,25 @@ export default function App() {
       const hadPrevious = existingClasses.length > 0 || (existingEnrollment?.guests && Object.keys(existingEnrollment.guests).length > 0);
       const hasCurrent = selectedClasses.length > 0 || totalGuestsCount > 0;
 
+      const cellPrefix = `Célula às ${cellTime || '17:00'} (Confirmada)`;
       if (!hasCurrent && hadPrevious) {
         action = 'unenrolled';
-        details = 'Cancelou a inscrição e convidados em todas as turmas.';
+        details = 'Cancelou a inscrição nos esportes.';
       } else if (!hadPrevious && hasCurrent) {
         action = 'enrolled';
-        details = classNamesStr ? `Inscreveu-se em: ${classNamesStr}` : `Cadastrou convidados`;
+        details = `${cellPrefix} • ` + (classNamesStr ? `Esportes: ${classNamesStr}` : `Cadastrou convidados`);
         if (totalGuestsCount > 0) {
           details += ` (+ ${totalGuestsCount} ${totalGuestsCount === 1 ? 'convidado' : 'convidados'}: ${guestDetailsSummary.join('; ')})`;
         }
       } else if (hasCurrent) {
         action = 'changed';
-        details = classNamesStr ? `Alterou inscrição para: ${classNamesStr}` : `Alterou convidados`;
+        details = `${cellPrefix} • ` + (classNamesStr ? `Esportes: ${classNamesStr}` : `Alterou convidados`);
         if (totalGuestsCount > 0) {
           details += ` (+ ${totalGuestsCount} ${totalGuestsCount === 1 ? 'convidado' : 'convidados'}: ${guestDetailsSummary.join('; ')})`;
         }
       } else {
         action = 'changed';
-        details = 'Salvou a inscrição vazia.';
+        details = `${cellPrefix} (salvou sem esportes adicionais).`;
       }
 
       await setDoc(doc(db, "enrollments", selectedStudentId), {
@@ -1460,8 +1507,10 @@ export default function App() {
         skillLevel: assignedBaseLevel,
         justifiedAbsence: false,
         absenceReason: null,
+        enrolledInCell: true,
+        cellTime: cellTime || '17:00',
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
 
       // Add to activity logs
       await addDoc(collection(db, "activity_logs"), {
@@ -1739,11 +1788,140 @@ export default function App() {
                       </span>
                     </div>
                   </div>
+                  <div className="col-span-2 bg-gradient-to-r from-amber-950/40 via-[#03170c]/80 to-black/90 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center shrink-0">
+                        <Flame className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-amber-300/80 text-[10px] font-black uppercase tracking-widest block">
+                          Célula (Reunião Evangelística)
+                        </span>
+                        <span className="text-white font-black text-lg flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-amber-400" />
+                          {cellTime || '17:00'}
+                          <span className="text-xs text-emerald-400 font-mono font-normal">
+                            ({enrollments.filter(e => !e.justifiedAbsence && e.enrolledInCell !== false).length} confirmados)
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-lg">
+                      Obrigatória
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Left Column (Turmas) */}
+              {/* Left Column (Turmas & Célula) */}
               <div className="lg:col-span-7 space-y-6">
+                {/* Painel de Horário da Célula ao Abrir Turmas */}
+                <div className="bg-gradient-to-br from-[#041a0e] via-black to-[#052012] border border-amber-500/40 rounded-3xl p-5 sm:p-6 shadow-[0_10px_35px_rgba(0,0,0,0.7)] relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0 shadow-inner">
+                        <Flame className="w-5 h-5 animate-pulse" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-tight">
+                            Horário da Célula (Reunião Evangelística)
+                          </h3>
+                          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/35">
+                            Obrigatória
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-emerald-100/70 mt-0.5">
+                          Defina o horário da Célula ao abrir turmas. Os atletas confirmam presença obrigatoriamente antes de escolher os esportes.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleOpenAllClasses}
+                        className="px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                        title="Ativar todas as turmas para inscrições"
+                      >
+                        Abrir Todas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCloseAllClasses}
+                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                        title="Fechar todas as turmas"
+                      >
+                        Fechar Todas
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-col md:flex-row md:items-center gap-4">
+                    {/* Input com botão salvar */}
+                    <div className="flex-1 flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Clock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-400" />
+                        <input
+                          type="text"
+                          value={cellTime}
+                          onChange={(e) => setCellTime(e.target.value)}
+                          placeholder="Ex: 17:00"
+                          maxLength={15}
+                          className="w-full bg-slate-950/90 border border-amber-500/30 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30 rounded-xl pl-10 pr-3 py-2.5 text-sm font-mono font-black text-amber-200 placeholder:text-slate-600 focus:outline-none transition-colors uppercase"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveCellTime(cellTime)}
+                        disabled={isSavingCellTime}
+                        className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-[0_2px_12px_rgba(245,158,11,0.35)] shrink-0 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        {cellTimeSuccess ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" /> Salvo!
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-3.5 h-3.5" /> Salvar Horário
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Botões rápidos de horário */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Rápido:</span>
+                      {['16:00', '16:30', '17:00', '17:30', '18:00', '18:30'].map(t => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => handleSaveCellTime(t)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                            cellTime === t
+                              ? 'bg-amber-400 text-slate-950 font-black shadow-[0_0_10px_rgba(245,158,11,0.5)]'
+                              : 'bg-black/60 text-slate-300 border border-white/10 hover:border-amber-400/40 hover:text-white'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center justify-between text-[11px] text-amber-200/80 gap-2">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                      Horário atual ativo: <strong className="text-white font-mono">{cellTime || '17:00'}</strong> ({activeDay})
+                    </span>
+                    <span className="text-emerald-400 font-bold">
+                      {enrollments.filter(e => !e.justifiedAbsence && e.enrolledInCell !== false).length} atletas já confirmados na Célula
+                    </span>
+                  </div>
+                </div>
+
                 <div className="flex justify-between items-center px-1 mt-4 lg:mt-0">
                   <div className="flex items-center gap-3">
                     <div className="w-1.5 h-6 bg-emerald-400 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.6)]" />
@@ -2419,7 +2597,7 @@ export default function App() {
               <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
                 <div className="text-center mb-6">
                   <span className="inline-block px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-black tracking-widest uppercase mb-3">
-                    Passo 01 de 03 • Identificação
+                    Passo 01 de 04 • Identificação
                   </span>
                   <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">Quem é você?</h1>
                   <p className="text-emerald-100/70 text-sm mt-1">Busque e selecione seu nome na lista oficial do Projeto Tsunami.</p>
@@ -2531,7 +2709,7 @@ export default function App() {
               <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
                 <div className="text-center mb-6">
                   <span className="inline-block px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-black tracking-widest uppercase mb-3">
-                    Passo 02 de 03 • Confirmação
+                    Passo 02 de 04 • Confirmação de Senha
                   </span>
                   <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">Sua Senha</h1>
                   <div className="inline-block px-4 py-2 bg-black/80 border border-emerald-500/30 rounded-2xl mt-2">
@@ -2573,10 +2751,115 @@ export default function App() {
             )}
 
             {studentStep === 3 && (
+              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-lg flex flex-col items-center">
+                <div className="text-center mb-6">
+                  <span className="inline-block px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-black tracking-widest uppercase mb-3">
+                    Passo 03 de 04 • Presença Obrigatória
+                  </span>
+                  <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-white">Célula do Projeto</h1>
+                  <p className="text-amber-200/70 text-sm mt-1">Reunião Evangelística Obrigatória antes dos Esportes</p>
+                  <div className="inline-block px-4 py-1.5 bg-black/80 border border-emerald-500/30 rounded-2xl mt-2.5">
+                    <p className="text-emerald-300 text-xs uppercase font-black tracking-wider">
+                      {students.find(s => s.id === selectedStudentId)?.name}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="w-full bg-[#03140a]/90 backdrop-blur-2xl rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col gap-6 border border-amber-500/30">
+                  {/* Destacado Horário da Célula */}
+                  <div className="bg-gradient-to-br from-amber-950/80 via-black/80 to-[#031c0e] border border-amber-500/40 rounded-3xl p-6 text-center shadow-[0_0_30px_rgba(245,158,11,0.15)] relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+                    <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center mb-3">
+                      <Flame className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-full inline-block mb-2">
+                      Horário Oficial da Célula
+                    </span>
+                    <h3 className="text-3xl sm:text-4xl font-black text-white font-mono tracking-tight mb-1 flex items-center justify-center gap-2">
+                      <Clock className="w-7 h-7 text-amber-400" />
+                      {cellTime || '17:00'}
+                    </h3>
+                    <p className="text-xs text-amber-200/80 font-bold uppercase tracking-wider">
+                      {activeDay} • Reunião Evangelística
+                    </p>
+                  </div>
+
+                  {/* Informação da obrigatoriedade */}
+                  <div className="bg-black/60 border border-emerald-500/30 rounded-2xl p-4 flex items-start gap-3.5">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center justify-center shrink-0 text-base">
+                      📖
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-emerald-300 mb-1">
+                        Inscrição Obrigatória na Célula
+                      </h4>
+                      <p className="text-[11px] text-emerald-100/70 leading-relaxed">
+                        Para participar de qualquer modalidade esportiva (Futevôlei, Vôlei, Boxe, etc.), a presença na Célula (Reunião Evangelística) às <strong className="text-white font-mono">{cellTime || '17:00'}</strong> é <strong className="text-amber-300">indispensável e obrigatória</strong> para todos os atletas.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Botão de Confirmação da Presença */}
+                  <button
+                    type="button"
+                    onClick={() => setCellConfirmed(prev => !prev)}
+                    className={`w-full p-4 rounded-2xl border transition-all text-left flex items-center gap-3.5 cursor-pointer ${
+                      cellConfirmed
+                        ? 'bg-emerald-950/60 border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.25)]'
+                        : 'bg-black/60 border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all shrink-0 ${
+                      cellConfirmed ? 'bg-emerald-400 text-slate-950 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'border border-slate-600 bg-slate-900'
+                    }`}>
+                      {cellConfirmed && <Check className="w-4 h-4 stroke-[3]" />}
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-xs sm:text-sm font-black uppercase tracking-wide block text-white">
+                        Confirmar presença na Célula às {cellTime || '17:00'}
+                      </span>
+                      <span className="text-[10px] text-emerald-400/80 font-medium">
+                        {cellConfirmed ? 'Presença confirmada ✓ • Liberado para marcar esportes' : 'Clique para confirmar presença obrigatória'}
+                      </span>
+                    </div>
+                  </button>
+
+                  {studentFlowError && <p className="text-rose-400 text-xs font-bold text-center bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">{studentFlowError}</p>}
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button 
+                      type="button"
+                      onClick={() => setStudentStep(2)}
+                      className="flex-1 bg-black/60 hover:bg-emerald-950/60 text-emerald-300 border border-emerald-900/50 font-black text-xs md:text-sm uppercase tracking-wider py-4 rounded-2xl transition-all cursor-pointer"
+                    >
+                      Voltar
+                    </button>
+                    <button 
+                      type="button"
+                      disabled={!cellConfirmed}
+                      onClick={() => {
+                        if (!cellConfirmed) {
+                          setStudentFlowError('A confirmação da presença na Célula é obrigatória para participar dos esportes.');
+                          return;
+                        }
+                        setStudentFlowError('');
+                        setStudentStep(4);
+                      }}
+                      className="flex-1 bg-gradient-to-r from-emerald-500 via-green-400 to-teal-400 hover:from-emerald-400 hover:to-teal-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black text-xs md:text-sm uppercase tracking-wider py-4 rounded-2xl transition-all shadow-[0_4px_16px_0_rgba(16,185,129,0.35)] flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span>Marcar Esportes</span>
+                      <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {studentStep === 4 && (
               <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-xl flex flex-col items-center">
                 <div className="text-center mb-6">
                   <span className="inline-block px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-black tracking-widest uppercase mb-3">
-                    Passo Final • Escolha suas Atividades
+                    Passo Final (04 de 04) • Escolha suas Atividades
                   </span>
                   <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">Inscrição & Convidados</h1>
                   <div className="inline-block px-4 py-1.5 bg-black/80 border border-emerald-500/30 rounded-2xl mt-1.5">
@@ -2609,6 +2892,30 @@ export default function App() {
 
                     return (
                       <>
+                        {/* Confirmação Fixa da Célula */}
+                        <div className="bg-amber-950/30 border border-amber-500/40 rounded-2xl p-3.5 mb-5 flex items-center justify-between gap-3 shadow-inner">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-300 flex items-center justify-center shrink-0">
+                              <Flame className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-black uppercase tracking-wider text-amber-200 block">
+                                Célula Confirmada às {cellTime || '17:00'} ✓
+                              </span>
+                              <span className="text-[10px] text-emerald-400/80">
+                                Presença obrigatória registrada • Selecione as modalidades esportivas abaixo:
+                              </span>
+                            </div>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => setStudentStep(3)}
+                            className="text-[10px] font-black uppercase tracking-wider text-amber-400 hover:text-white px-2.5 py-1 rounded-lg border border-amber-500/30 hover:border-amber-400 transition-colors shrink-0 cursor-pointer"
+                          >
+                            Ver Horário
+                          </button>
+                        </div>
+
                         {/* AVISO: NÍVEL DEFINIDO EXCLUSIVAMENTE PELO PROFESSOR */}
                         <div className="bg-black/70 border border-emerald-500/30 rounded-2xl p-4 mb-5 shadow-lg flex items-start gap-3.5">
                           <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center justify-center text-xl shrink-0">
@@ -2881,6 +3188,13 @@ export default function App() {
 
                         {/* Summary of selections */}
                         <div className="bg-slate-950/70 rounded-2xl p-4 mb-4 border border-white/10 text-xs text-slate-400 flex flex-col gap-2">
+                          <div className="flex justify-between items-center pb-2 border-b border-white/5">
+                            <span>Célula (Reunião Evangelística):</span>
+                            <strong className="text-amber-300 font-mono flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                              Confirmado às {cellTime || '17:00'} (Obrigatório)
+                            </strong>
+                          </div>
                           <div className="flex justify-between items-center">
                             <span>Turmas selecionadas:</span>
                             <strong className="text-emerald-400 uppercase">
@@ -2904,7 +3218,7 @@ export default function App() {
 
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button 
-                      onClick={() => setStudentStep(2)}
+                      onClick={() => setStudentStep(3)}
                       className="sm:w-1/3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-black text-xs md:text-sm uppercase tracking-wider py-4 rounded-2xl transition-all cursor-pointer"
                     >
                       Voltar
@@ -3268,6 +3582,19 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="space-y-3">
+                      {/* Horário da Célula sinalizado antes da inscrição */}
+                      <div className="flex items-center justify-between gap-2.5 text-xs font-bold text-amber-200 bg-gradient-to-r from-amber-950/60 via-black/80 to-amber-950/60 py-2.5 px-3.5 rounded-2xl border border-amber-500/40 shadow-inner">
+                        <div className="flex items-center gap-2">
+                          <Flame className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+                          <span>
+                            Célula ({activeDay}): <strong className="text-white font-mono text-sm">{cellTime || '17:00'}</strong>
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 bg-amber-500/20 border border-amber-500/35 px-2 py-0.5 rounded-md">
+                          Obrigatória
+                        </span>
+                      </div>
+
                       <button 
                         type="button"
                         onClick={startStudentFlow}
@@ -3292,7 +3619,7 @@ export default function App() {
                       </div>
 
                       <p className="text-[11px] text-emerald-400/80 uppercase tracking-widest font-semibold">
-                        Rápido e seguro em 3 passos
+                        Rápido e seguro em 4 passos (Célula + Esportes)
                       </p>
                     </div>
                   )}
@@ -3656,6 +3983,7 @@ export default function App() {
           onUpdateParticipantLevel={handleAdminUpdateParticipantLevel}
           onOpenDrawModal={(classId) => setActiveDrawClassId(classId)}
           savedDraws={savedDraws}
+          cellTime={cellTime}
         />
       )}
 
