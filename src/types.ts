@@ -47,6 +47,16 @@ export interface Participant {
   enrolledIndex: number;
 }
 
+export interface CellParticipant {
+  key: string;
+  name: string;
+  isGuest: boolean;
+  guestOf?: string;
+  studentId?: string;
+  sportsClasses: string[];
+  enrolledIndex: number;
+}
+
 export interface Team {
   id: number;
   name: string;

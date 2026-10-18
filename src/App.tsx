@@ -27,14 +27,15 @@ import {
   CheckCircle2,
   Sliders,
   UserCheck,
-  Clock
+  Clock,
+  Copy
 } from "lucide-react";
 import { doc, setDoc, getDocs, deleteDoc, onSnapshot, collection, serverTimestamp, addDoc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "./lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import { TeamDrawModal } from "./components/TeamDrawModal";
 import { SaturdaySportModal } from "./components/SaturdaySportModal";
-import type { Participant, DrawResult } from "./types";
+import type { Participant, DrawResult, CellParticipant } from "./types";
 
 type ClassDay = 'SEGUNDA' | 'TERÇA' | 'QUARTA' | 'QUINTA' | 'SEXTA' | 'SÁBADO' | 'DOMINGO' | string;
 
@@ -206,6 +207,9 @@ export default function App() {
   const [cellConfirmed, setCellConfirmed] = useState<boolean>(true);
   const [isSavingCellTime, setIsSavingCellTime] = useState<boolean>(false);
   const [cellTimeSuccess, setCellTimeSuccess] = useState<boolean>(false);
+  const [homeListTab, setHomeListTab] = useState<'all' | 'cell' | 'sports'>('all');
+  const [cellSearchInput, setCellSearchInput] = useState<string>('');
+  const [copiedCellList, setCopiedCellList] = useState<boolean>(false);
 
   // Student Flow State (Enrollment)
   const [studentStep, setStudentStep] = useState<1 | 2 | 3 | 4>(1);
@@ -473,6 +477,78 @@ export default function App() {
     }
 
     return participants;
+  };
+
+  const getCellParticipants = (): CellParticipant[] => {
+    const activeEnrollments = enrollments
+      .filter(e => !e.justifiedAbsence && e.enrolledInCell !== false)
+      .sort((a, b) => a.updatedAt - b.updatedAt);
+
+    const participants: CellParticipant[] = [];
+    let count = 1;
+
+    for (const enr of activeEnrollments) {
+      const st = students.find(s => s.id === enr.studentId);
+      const studentName = enr.studentName || st?.name || (enr.isGuest ? 'Convidado' : 'Atleta Desconhecido');
+      
+      const sportsNames = (enr.classes || [])
+        .map(cid => classes.find(c => c.id === cid)?.name)
+        .filter(Boolean) as string[];
+
+      participants.push({
+        key: `${enr.studentId}-cell-main`,
+        name: studentName,
+        isGuest: !!enr.isGuest,
+        guestOf: enr.guestOf || (enr.isGuest ? 'Admin' : undefined),
+        studentId: enr.studentId,
+        sportsClasses: sportsNames,
+        enrolledIndex: count++,
+      });
+
+      // Include unique guests accompanying this student
+      const seenGuests = new Set<string>();
+      if (enr.guests) {
+        Object.entries(enr.guests).forEach(([classId, gList]) => {
+          const className = classes.find(c => c.id === classId)?.name || 'Esporte';
+          const list = Array.isArray(gList) ? (gList as string[]) : [];
+          list.forEach(gName => {
+            const trimmed = gName.trim();
+            if (trimmed && !seenGuests.has(trimmed.toLowerCase())) {
+              seenGuests.add(trimmed.toLowerCase());
+              participants.push({
+                key: `${enr.studentId}-cell-guest-${trimmed}`,
+                name: trimmed,
+                isGuest: true,
+                guestOf: studentName,
+                studentId: enr.studentId,
+                sportsClasses: [className],
+                enrolledIndex: count++,
+              });
+            }
+          });
+        });
+      }
+    }
+
+    return participants;
+  };
+
+  const handleCopyCellList = (cellList: CellParticipant[]) => {
+    if (cellList.length === 0) return;
+    const header = `*🔥 PROJETO TSUNAMI - LISTA DE PRESENÇA DA CÉLULA*\n📅 *Dia:* ${activeDay}\n⏰ *Horário:* ${cellTime || '17:00'} (Reunião Evangelística)\n👥 *Total de Confirmados:* ${cellList.length}\n\n*ATLETAS E CONVIDADOS CONFIRMADOS:*`;
+    const lines = cellList.map((p, idx) => {
+      const guestInfo = p.isGuest ? (p.guestOf ? ` _(Convidado de ${p.guestOf})_` : ` _(Convidado)_`) : '';
+      const sportsInfo = p.sportsClasses.length > 0 ? ` [${p.sportsClasses.join(', ')}]` : '';
+      return `${idx + 1}. ${p.name}${guestInfo}${sportsInfo}`;
+    });
+    const fullText = `${header}\n${lines.join('\n')}\n\n📍 _Presença obrigatória antes dos jogos e treinos!_`;
+
+    navigator.clipboard.writeText(fullText).then(() => {
+      setCopiedCellList(true);
+      setTimeout(() => setCopiedCellList(false), 2500);
+    }).catch(err => {
+      console.error('Falha ao copiar lista', err);
+    });
   };
 
   const handleAdminUpdateParticipantLevel = async (
@@ -3626,8 +3702,231 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Selector de Listas: Célula vs Esportes vs Ver Tudo */}
+              {(() => {
+                const cellParticipants = getCellParticipants();
+                const filteredCellParticipants = cellParticipants.filter(p => {
+                  if (!cellSearchInput.trim()) return true;
+                  const q = cellSearchInput.toLowerCase();
+                  return p.name.toLowerCase().includes(q) || (p.guestOf && p.guestOf.toLowerCase().includes(q));
+                });
+                const totalSportsEnrolled = classes.filter(c => c.isOpen).reduce((acc, c) => acc + getClassParticipants(c.id).length, 0);
+
+                return (
+                  <>
+                    {/* Filter Switcher */}
+                    <div className="bg-[#03140a]/90 backdrop-blur-xl border border-emerald-500/20 rounded-2xl p-1.5 flex items-center justify-between gap-1 shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => setHomeListTab('all')}
+                        className={`flex-1 py-2 px-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          homeListTab === 'all'
+                            ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-slate-950 shadow-md font-black'
+                            : 'text-emerald-300/70 hover:text-white hover:bg-emerald-950/40'
+                        }`}
+                      >
+                        <span>📋 Ver Ambas</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setHomeListTab('cell')}
+                        className={`flex-1 py-2 px-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          homeListTab === 'cell'
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md font-black'
+                            : 'text-amber-300/80 hover:text-amber-200 hover:bg-amber-950/40'
+                        }`}
+                      >
+                        <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>Célula ({cellParticipants.length})</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setHomeListTab('sports')}
+                        className={`flex-1 py-2 px-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          homeListTab === 'sports'
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md font-black'
+                            : 'text-emerald-300/70 hover:text-white hover:bg-emerald-950/40'
+                        }`}
+                      >
+                        <span>⚽ Esportes ({totalSportsEnrolled})</span>
+                      </button>
+                    </div>
+
+                    {/* Card: Lista de Inscritos na Célula (Reunião Evangelística) */}
+                    {(homeListTab === 'all' || homeListTab === 'cell') && (
+                      <div className="bg-[#03140a]/90 backdrop-blur-2xl border border-amber-500/30 rounded-[2.25rem] p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                        {/* Header */}
+                        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-amber-500/20">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/25 to-orange-600/25 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                              <Flame className="w-5 h-5 animate-pulse" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-tight">
+                                  Inscritos na Célula
+                                </h2>
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/35">
+                                  Obrigatória
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-amber-200/80 font-medium mt-0.5">
+                                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                                <span>
+                                  Horário: <strong className="text-white font-mono">{cellTime || '17:00'}</strong> ({activeDay})
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                            <span className="text-[11px] font-black text-amber-300 uppercase tracking-widest bg-black/60 px-3 py-1.5 rounded-full border border-amber-500/30 shadow-inner flex items-center gap-1.5">
+                              <Users className="w-3.5 h-3.5 text-amber-400" />
+                              <span>{cellParticipants.length} {cellParticipants.length === 1 ? 'Confirmado' : 'Confirmados'}</span>
+                            </span>
+
+                            {cellParticipants.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopyCellList(cellParticipants)}
+                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border shadow-sm ${
+                                  copiedCellList
+                                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                                    : 'bg-black/60 border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-white'
+                                }`}
+                                title="Copiar lista formatada para o WhatsApp"
+                              >
+                                {copiedCellList ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                    <span>Lista Copiada!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3.5 h-3.5 text-amber-400" />
+                                    <span>WhatsApp</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Aviso Informativo */}
+                        <div className="relative z-10 bg-gradient-to-r from-amber-950/40 via-black to-amber-950/40 border border-amber-500/25 rounded-2xl p-3.5 mb-5 shadow-inner flex items-center gap-3 text-xs text-amber-100/90">
+                          <span className="text-lg">📖</span>
+                          <span className="leading-relaxed">
+                            Reunião evangelística semanal no <strong className="text-white font-bold">{activeDay}</strong> às <strong className="text-white font-mono">{cellTime || '17:00'}</strong>. A presença é obrigatória para todos os atletas antes das atividades esportivas.
+                          </span>
+                        </div>
+
+                        {/* Campo de Busca */}
+                        {cellParticipants.length > 4 && (
+                          <div className="relative z-10 mb-4">
+                            <input
+                              type="text"
+                              value={cellSearchInput}
+                              onChange={(e) => setCellSearchInput(e.target.value)}
+                              placeholder="🔍 Buscar atleta na lista da Célula..."
+                              className="w-full bg-black/70 border border-amber-500/30 focus:border-amber-400 rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-amber-200/40 focus:outline-none transition-all"
+                            />
+                          </div>
+                        )}
+
+                        {/* Lista de Atletas da Célula */}
+                        <div className="relative z-10 space-y-2">
+                          {cellParticipants.length === 0 ? (
+                            <div className="py-10 flex flex-col items-center justify-center text-center bg-black/60 rounded-2xl border border-dashed border-amber-500/30 p-6">
+                              <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mb-3">
+                                <Flame className="w-6 h-6 animate-pulse" />
+                              </div>
+                              <p className="text-amber-300 font-black tracking-widest uppercase text-xs sm:text-sm">
+                                Nenhum atleta inscrito na Célula ainda
+                              </p>
+                              <span className="text-emerald-400/70 text-xs font-normal mt-1">
+                                Os inscritos pelo botão acima aparecerão aqui automaticamente.
+                              </span>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="space-y-1.5">
+                                {filteredCellParticipants.map((p) => (
+                                  <div
+                                    key={p.key}
+                                    className={`rounded-xl p-3 flex items-center justify-between border transition-all ${
+                                      p.isGuest
+                                        ? 'bg-amber-950/25 border-amber-500/40 shadow-sm shadow-amber-500/5'
+                                        : 'bg-[#03150b]/80 border-emerald-950 hover:border-amber-500/40'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3 w-full">
+                                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                                        p.isGuest
+                                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                          : 'bg-black text-amber-400 border border-amber-500/40'
+                                      }`}>
+                                        {p.enrolledIndex}
+                                      </div>
+
+                                      <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2 flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className={`text-xs sm:text-sm font-black uppercase truncate ${
+                                            p.isGuest ? 'text-amber-300' : 'text-emerald-50'
+                                          }`}>
+                                            {p.name}
+                                          </span>
+                                          {p.isGuest && (
+                                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-wide shrink-0">
+                                              {p.guestOf && p.guestOf !== 'Admin' ? `(CONVIDADO DE ${p.guestOf})` : '(CONVIDADO)'}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {p.sportsClasses.length > 0 && (
+                                          <div className="flex items-center gap-1 flex-wrap">
+                                            {p.sportsClasses.map(sc => (
+                                              <span key={sc} className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                                {sc}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Status Badge */}
+                                      <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500/15 to-emerald-500/15 border border-amber-500/30 text-amber-300">
+                                          <Flame className="w-3 h-3 text-amber-400 animate-pulse" />
+                                          <span className="hidden sm:inline">Confirmado</span>
+                                          <span className="sm:hidden">✓</span>
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {filteredCellParticipants.length === 0 && cellSearchInput.trim() !== '' && (
+                                <div className="text-center py-6 bg-black/40 rounded-xl border border-dashed border-amber-500/20">
+                                  <p className="text-xs text-amber-200/70">Nenhum participante encontrado com "{cellSearchInput}"</p>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
               {/* Card 3: Real-Time Slots & Classes */}
-              <div className="bg-[#03140a]/90 backdrop-blur-2xl border border-emerald-500/25 rounded-[2.25rem] p-6 sm:p-8 shadow-2xl">
+              {(homeListTab === 'all' || homeListTab === 'sports') && (
+                <div className="bg-[#03140a]/90 backdrop-blur-2xl border border-emerald-500/25 rounded-[2.25rem] p-6 sm:p-8 shadow-2xl">
                 <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-emerald-900/40">
                   <div className="flex items-center gap-2.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
@@ -3920,6 +4219,7 @@ export default function App() {
                   </div>
                 )}
               </div>
+              )}
 
               {/* Justification CTA at the bottom */}
               {absenceJustificationOpen && (
