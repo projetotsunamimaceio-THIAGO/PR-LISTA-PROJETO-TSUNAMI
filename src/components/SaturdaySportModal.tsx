@@ -36,7 +36,7 @@ interface SaturdaySportModalProps {
   onAddStudentToClass: (studentId: string, classId: string) => Promise<void>;
   onAddMultipleStudentsToClass: (studentIds: string[], classId: string) => Promise<void>;
   onRemoveParticipantFromClass: (participant: Participant, classId: string) => Promise<void>;
-  onAddGuestToClass: (classId: string, guestName: string, guestLevel: number) => Promise<void>;
+  onAddGuestToClass: (classId: string, guestName: string, guestLevel: number, studentId?: string) => Promise<void>;
   onUpdateParticipantLevel: (classId: string, participant: Participant, newLevel: number) => Promise<void>;
   onOpenDrawModal: (classId: string) => void;
   savedDraws: Record<string, DrawResult>;
@@ -74,6 +74,7 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
   // Guest addition form
   const [guestName, setGuestName] = useState('');
   const [guestLevel, setGuestLevel] = useState<number>(3);
+  const [guestStudentId, setGuestStudentId] = useState<string>('');
   const [guestSuccessMsg, setGuestSuccessMsg] = useState('');
   const [batchSuccessMsg, setBatchSuccessMsg] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -159,9 +160,10 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
     
     setIsProcessing(true);
     try {
-      await onAddGuestToClass(currentClass.id, guestName.trim(), guestLevel);
+      await onAddGuestToClass(currentClass.id, guestName.trim(), guestLevel, guestStudentId || undefined);
       setGuestSuccessMsg(`Convidado "${guestName.trim()}" inserido com sucesso!`);
       setGuestName('');
+      setGuestStudentId('');
       setTimeout(() => setGuestSuccessMsg(''), 3000);
     } finally {
       setIsProcessing(false);
@@ -550,6 +552,29 @@ export const SaturdaySportModal: React.FC<SaturdaySportModalProps> = ({
                       autoFocus
                       className="w-full bg-black/80 border border-emerald-900/70 rounded-2xl px-4 py-3 text-sm text-white uppercase placeholder:normal-case placeholder:text-emerald-700 focus:outline-none focus:border-amber-400 transition-colors"
                     />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-black uppercase tracking-wider text-emerald-200 block mb-1.5">
+                      Vincular a um Aluno (Convidado de quem?):
+                    </label>
+                    <select
+                      value={guestStudentId}
+                      onChange={(e) => setGuestStudentId(e.target.value)}
+                      className="w-full bg-black/80 border border-emerald-900/70 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-400 transition-colors cursor-pointer"
+                    >
+                      <option value="">Nenhum (Convidado Geral / Admin)</option>
+                      {students.map(s => (
+                        <option key={s.id} value={s.id}>
+                          Aluno: {s.name} {!s.isAllowed ? '(Inscrição Bloqueada)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-emerald-400/70 mt-1">
+                      {guestStudentId 
+                        ? `Aparecerá na lista oficial como "${guestName || 'Nome'} (Convidado de ${students.find(s => s.id === guestStudentId)?.name})"`
+                        : 'Deixe vazio para convidado avulso do Admin.'}
+                    </p>
                   </div>
 
                   <div>

@@ -211,6 +211,12 @@ export default function App() {
   const [cellSearchInput, setCellSearchInput] = useState<string>('');
   const [copiedCellList, setCopiedCellList] = useState<boolean>(false);
 
+  // Admin Guest Management State (Exclusive to Admin)
+  const [managingGuestsStudentId, setManagingGuestsStudentId] = useState<string | null>(null);
+  const [adminNewGuestClassId, setAdminNewGuestClassId] = useState<Record<string, string>>({});
+  const [adminNewGuestName, setAdminNewGuestName] = useState<Record<string, string>>({});
+  const [adminNewGuestLevel, setAdminNewGuestLevel] = useState<Record<string, number>>({});
+
   // Student Flow State (Enrollment)
   const [studentStep, setStudentStep] = useState<1 | 2 | 3 | 4>(1);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -538,8 +544,7 @@ export default function App() {
     const header = `*🔥 PROJETO TSUNAMI - LISTA DE PRESENÇA DA CÉLULA*\n📅 *Dia:* ${activeDay}\n⏰ *Horário:* ${cellTime || '17:00'} (Reunião Evangelística)\n👥 *Total de Confirmados:* ${cellList.length}\n\n*ATLETAS E CONVIDADOS CONFIRMADOS:*`;
     const lines = cellList.map((p, idx) => {
       const guestInfo = p.isGuest ? (p.guestOf ? ` _(Convidado de ${p.guestOf})_` : ` _(Convidado)_`) : '';
-      const sportsInfo = p.sportsClasses.length > 0 ? ` [${p.sportsClasses.join(', ')}]` : '';
-      return `${idx + 1}. ${p.name}${guestInfo}${sportsInfo}`;
+      return `${idx + 1}. ${p.name}${guestInfo}`;
     });
     const fullText = `${header}\n${lines.join('\n')}\n\n📍 _Presença obrigatória antes dos jogos e treinos!_`;
 
@@ -882,7 +887,181 @@ export default function App() {
     }
   };
 
-  const handleSaturdayAddGuestToClass = async (classId: string, guestName: string, guestLevel: number) => {
+  const handleAdminAddGuestForStudent = async (
+    studentId: string,
+    classId: string,
+    guestName: string,
+    guestLevel: number
+  ) => {
+    const trimmedName = guestName.trim();
+    if (!trimmedName || !studentId || !classId) return;
+
+    try {
+      const student = students.find(s => s.id === studentId);
+      const studentName = student?.name || 'Aluno';
+      const className = classes.find(c => c.id === classId)?.name || 'Turma';
+      const clampedLevel = Math.max(1, Math.min(5, Math.round(guestLevel || 3)));
+
+      const existingEnrollment = enrollments.find(e => e.studentId === studentId);
+      const currentGuests = { ...(existingEnrollment?.guests || {}) };
+      const currentGuestLevels = { ...(existingEnrollment?.guestLevels || {}) };
+
+      const classGuests = [...(currentGuests[classId] || [])];
+      const classLevels = [...(currentGuestLevels[classId] || [])];
+
+      if (classGuests.length >= 2) {
+        alert(`O aluno ${studentName} já possui o limite de 2 convidados para a turma ${className}.`);
+        return;
+      }
+
+      classGuests.push(trimmedName);
+      classLevels.push(clampedLevel);
+
+      currentGuests[classId] = classGuests;
+      currentGuestLevels[classId] = classLevels;
+
+      const updatedClasses = existingEnrollment?.classes && existingEnrollment.classes.length > 0
+        ? Array.from(new Set([...existingEnrollment.classes, classId]))
+        : [classId];
+
+      const updatedEnrollment: EnrollmentRecord = {
+        studentId: studentId,
+        studentName: studentName,
+        isGuest: false,
+        classes: updatedClasses,
+        guests: currentGuests,
+        guestLevels: currentGuestLevels,
+        classLevels: existingEnrollment?.classLevels || {},
+        skillLevel: existingEnrollment?.skillLevel || student?.skillLevel || 3,
+        updatedAt: Date.now(),
+        justifiedAbsence: false,
+        absenceReason: '',
+        enrolledInCell: true,
+        cellTime: cellTime || '17:00'
+      };
+
+      // Optimistic update
+      setEnrollments(prev => {
+        const exists = prev.some(e => e.studentId === studentId);
+        if (exists) {
+          return prev.map(e => e.studentId === studentId ? updatedEnrollment : e);
+        } else {
+          return [...prev, updatedEnrollment];
+        }
+      });
+
+      await setDoc(doc(db, "enrollments", studentId), {
+        classes: updatedClasses,
+        guests: currentGuests,
+        guestLevels: currentGuestLevels,
+        studentName: studentName,
+        isGuest: false,
+        enrolledInCell: true,
+        cellTime: cellTime || '17:00',
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Professor (Admin)',
+        action: 'enrolled',
+        details: `Admin inseriu o convidado "${trimmedName}" (${clampedLevel}★) para o aluno ${studentName} na turma ${className}`,
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Erro ao inserir convidado para o aluno", err);
+    }
+  };
+
+  const handleAdminRemoveGuestForStudent = async (
+    studentId: string,
+    classId: string,
+    guestIndex: number
+  ) => {
+    try {
+      const student = students.find(s => s.id === studentId);
+      const studentName = student?.name || 'Aluno';
+      const className = classes.find(c => c.id === classId)?.name || 'Turma';
+
+      const existingEnrollment = enrollments.find(e => e.studentId === studentId);
+      if (!existingEnrollment || !existingEnrollment.guests?.[classId]) return;
+
+      const currentGuests = { ...existingEnrollment.guests };
+      const currentGuestLevels = { ...(existingEnrollment.guestLevels || {}) };
+
+      const classGuests = [...(currentGuests[classId] || [])];
+      const classLevels = [...(currentGuestLevels[classId] || [])];
+
+      const removedName = classGuests[guestIndex] || 'Convidado';
+      classGuests.splice(guestIndex, 1);
+      classLevels.splice(guestIndex, 1);
+
+      if (classGuests.length === 0) {
+        delete currentGuests[classId];
+        delete currentGuestLevels[classId];
+      } else {
+        currentGuests[classId] = classGuests;
+        currentGuestLevels[classId] = classLevels;
+      }
+
+      setEnrollments(prev => prev.map(e => e.studentId === studentId ? {
+        ...e,
+        guests: currentGuests,
+        guestLevels: currentGuestLevels
+      } : e));
+
+      await setDoc(doc(db, "enrollments", studentId), {
+        guests: currentGuests,
+        guestLevels: currentGuestLevels,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      await addDoc(collection(db, "activity_logs"), {
+        studentName: 'Professor (Admin)',
+        action: 'unenrolled',
+        details: `Admin removeu o convidado "${removedName}" do aluno ${studentName} na turma ${className}`,
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Erro ao remover convidado do aluno", err);
+    }
+  };
+
+  const handleAdminUpdateGuestLevelForStudent = async (
+    studentId: string,
+    classId: string,
+    guestIndex: number,
+    newLevel: number
+  ) => {
+    try {
+      const clampedLevel = Math.max(1, Math.min(5, Math.round(newLevel)));
+      const existingEnrollment = enrollments.find(e => e.studentId === studentId);
+      if (!existingEnrollment || !existingEnrollment.guests?.[classId]) return;
+
+      const currentGuestLevels = { ...(existingEnrollment.guestLevels || {}) };
+      const classLevels = [...(currentGuestLevels[classId] || [3, 3])];
+      while (classLevels.length <= guestIndex) classLevels.push(3);
+      classLevels[guestIndex] = clampedLevel;
+      currentGuestLevels[classId] = classLevels;
+
+      setEnrollments(prev => prev.map(e => e.studentId === studentId ? {
+        ...e,
+        guestLevels: currentGuestLevels
+      } : e));
+
+      await setDoc(doc(db, "enrollments", studentId), {
+        guestLevels: currentGuestLevels,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (err) {
+      console.error("Erro ao atualizar nível do convidado", err);
+    }
+  };
+
+  const handleSaturdayAddGuestToClass = async (classId: string, guestName: string, guestLevel: number, studentId?: string) => {
+    if (studentId) {
+      await handleAdminAddGuestForStudent(studentId, classId, guestName, guestLevel);
+      return;
+    }
     const className = classes.find(c => c.id === classId)?.name || 'Turma';
     const guestDocId = `guest_admin_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const clampedLevel = Math.max(1, Math.min(5, Math.round(guestLevel || 3)));
@@ -1502,37 +1681,9 @@ export default function App() {
       let action: 'enrolled' | 'unenrolled' | 'changed' = 'changed';
       let details = '';
 
-      // Clean guests: only keep valid non-empty guests for each class (max 2 per class)
-      // Levels for guests are preserved from what the professor set, or default to 3
-      const cleanedGuests: Record<string, string[]> = {};
-      const preservedGuestLevels: Record<string, number[]> = {};
-      let totalGuestsCount = 0;
-      const guestDetailsSummary: string[] = [];
-
-      for (const [classId, rawList] of Object.entries(selectedGuests)) {
-        const list: string[] = [];
-        const levels: number[] = [];
-        const existingGLevels = existingEnrollment?.guestLevels?.[classId] || [3, 3];
-
-        const rawArray = ((rawList as string[]) || []).slice(0, 2);
-        rawArray.forEach((rawName, i) => {
-          const trimmed = (rawName || '').trim();
-          if (trimmed.length > 0) {
-            list.push(trimmed);
-            // Preserve level assigned by professor if exists, else default to 3
-            const lvl = existingGLevels[i] && existingGLevels[i] >= 1 && existingGLevels[i] <= 5 ? existingGLevels[i] : 3;
-            levels.push(lvl);
-          }
-        });
-        
-        if (list.length > 0) {
-          cleanedGuests[classId] = list;
-          preservedGuestLevels[classId] = levels;
-          totalGuestsCount += list.length;
-          const cName = classes.find(c => c.id === classId)?.name || 'Turma';
-          guestDetailsSummary.push(`${cName}: ${list.join(', ')}`);
-        }
-      }
+      // Convidados são gerenciados exclusivamente pelo administrador. Preservamos os convidados definidos pelo admin.
+      const preservedGuests: Record<string, string[]> = existingEnrollment?.guests || {};
+      const preservedGuestLevels: Record<string, number[]> = existingEnrollment?.guestLevels || {};
 
       // Preserve student levels assigned exclusively by the professor
       const preservedClassLevels: Record<string, number> = {
@@ -1551,8 +1702,8 @@ export default function App() {
         return classes.find(c => c.id === cid)?.name || 'Turma';
       }).join(', ');
 
-      const hadPrevious = existingClasses.length > 0 || (existingEnrollment?.guests && Object.keys(existingEnrollment.guests).length > 0);
-      const hasCurrent = selectedClasses.length > 0 || totalGuestsCount > 0;
+      const hadPrevious = existingClasses.length > 0;
+      const hasCurrent = selectedClasses.length > 0;
 
       const cellPrefix = `Célula às ${cellTime || '17:00'} (Confirmada)`;
       if (!hasCurrent && hadPrevious) {
@@ -1560,16 +1711,10 @@ export default function App() {
         details = 'Cancelou a inscrição nos esportes.';
       } else if (!hadPrevious && hasCurrent) {
         action = 'enrolled';
-        details = `${cellPrefix} • ` + (classNamesStr ? `Esportes: ${classNamesStr}` : `Cadastrou convidados`);
-        if (totalGuestsCount > 0) {
-          details += ` (+ ${totalGuestsCount} ${totalGuestsCount === 1 ? 'convidado' : 'convidados'}: ${guestDetailsSummary.join('; ')})`;
-        }
+        details = `${cellPrefix} • ` + (classNamesStr ? `Esportes: ${classNamesStr}` : `Inscrição confirmada`);
       } else if (hasCurrent) {
         action = 'changed';
-        details = `${cellPrefix} • ` + (classNamesStr ? `Esportes: ${classNamesStr}` : `Alterou convidados`);
-        if (totalGuestsCount > 0) {
-          details += ` (+ ${totalGuestsCount} ${totalGuestsCount === 1 ? 'convidado' : 'convidados'}: ${guestDetailsSummary.join('; ')})`;
-        }
+        details = `${cellPrefix} • ` + (classNamesStr ? `Esportes: ${classNamesStr}` : `Inscrição atualizada`);
       } else {
         action = 'changed';
         details = `${cellPrefix} (salvou sem esportes adicionais).`;
@@ -1578,7 +1723,7 @@ export default function App() {
       await setDoc(doc(db, "enrollments", selectedStudentId), {
         classes: selectedClasses,
         classLevels: preservedClassLevels,
-        guests: cleanedGuests,
+        guests: preservedGuests,
         guestLevels: preservedGuestLevels,
         skillLevel: assignedBaseLevel,
         justifiedAbsence: false,
@@ -2423,125 +2568,366 @@ export default function App() {
                         </p>
                       </div>
                     ) : (
-                      filteredStudents.map(student => (
-                        <div key={student.id} className={`border rounded-2xl p-4 flex flex-col gap-3 transition-colors ${student.isAllowed ? 'bg-[#020d06] border-emerald-900/60 hover:border-emerald-700/80' : 'bg-rose-950/20 border-rose-900/40'}`}>
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h4 className={`font-black text-sm tracking-tight uppercase line-clamp-1 ${student.isAllowed ? 'text-white' : 'text-rose-300/60'}`} title={student.name}>
-                                  {student.name}
-                                </h4>
+                      filteredStudents.map(student => {
+                        const studentEnrollment = enrollments.find(e => e.studentId === student.id);
+                        const totalStudentGuests: number = studentEnrollment?.guests 
+                          ? Object.values(studentEnrollment.guests).reduce<number>((acc, list) => acc + (Array.isArray(list) ? list.length : 0), 0)
+                          : 0;
+                        const isManagingGuests = managingGuestsStudentId === student.id;
 
-                                {student.canJustify && (
-                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1 shadow-sm">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-                                    Pode Justificar
-                                  </span>
-                                )}
-                                
-                                {/* 1-Click Star Selector for Professor */}
-                                <div className="flex items-center gap-1 bg-black/90 border border-amber-400/30 px-2 py-0.5 rounded-lg w-fit">
-                                  <span className="text-[9px] font-black uppercase text-amber-400 mr-0.5">
-                                    Nível:
-                                  </span>
-                                  <div className="flex items-center gap-0.5">
-                                    {([1, 2, 3, 4, 5] as const).map(starNum => {
-                                      const currentLevel = student.skillLevel || 3;
-                                      const isSelected = starNum <= currentLevel;
-                                      return (
-                                        <button
-                                          key={starNum}
-                                          type="button"
-                                          onClick={() => handleAdminSetStudentLevel(student.id, starNum)}
-                                          title={`Definir nível do aluno para ${starNum} estrelas`}
-                                          className={`text-xs leading-none transition-transform hover:scale-125 active:scale-95 p-0.5 cursor-pointer ${
-                                            isSelected
-                                              ? 'opacity-100 drop-shadow-[0_0_4px_rgba(250,204,21,0.6)]'
-                                              : 'opacity-25 hover:opacity-75 grayscale'
-                                          }`}
-                                        >
-                                          ⭐
-                                        </button>
-                                      );
-                                    })}
+                        return (
+                          <div key={student.id} className={`border rounded-2xl p-4 flex flex-col gap-3 transition-colors ${student.isAllowed ? 'bg-[#020d06] border-emerald-900/60 hover:border-emerald-700/80' : 'bg-rose-950/20 border-rose-900/40'}`}>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h4 className={`font-black text-sm tracking-tight uppercase line-clamp-1 ${student.isAllowed ? 'text-white' : 'text-rose-300/60'}`} title={student.name}>
+                                    {student.name}
+                                  </h4>
+
+                                  {student.canJustify && (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1 shadow-sm">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                                      Pode Justificar
+                                    </span>
+                                  )}
+                                  
+                                  {/* 1-Click Star Selector for Professor */}
+                                  <div className="flex items-center gap-1 bg-black/90 border border-amber-400/30 px-2 py-0.5 rounded-lg w-fit">
+                                    <span className="text-[9px] font-black uppercase text-amber-400 mr-0.5">
+                                      Nível:
+                                    </span>
+                                    <div className="flex items-center gap-0.5">
+                                      {([1, 2, 3, 4, 5] as const).map(starNum => {
+                                        const currentLevel = student.skillLevel || 3;
+                                        const isSelected = starNum <= currentLevel;
+                                        return (
+                                          <button
+                                            key={starNum}
+                                            type="button"
+                                            onClick={() => handleAdminSetStudentLevel(student.id, starNum)}
+                                            title={`Definir nível do aluno para ${starNum} estrelas`}
+                                            className={`text-xs leading-none transition-transform hover:scale-125 active:scale-95 p-0.5 cursor-pointer ${
+                                              isSelected
+                                                ? 'opacity-100 drop-shadow-[0_0_4px_rgba(250,204,21,0.6)]'
+                                                : 'opacity-25 hover:opacity-75 grayscale'
+                                            }`}
+                                          >
+                                            ⭐
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                    <span className="text-[10px] font-mono text-amber-300 font-bold ml-1">
+                                      {student.skillLevel || 3}★
+                                    </span>
                                   </div>
-                                  <span className="text-[10px] font-mono text-amber-300 font-bold ml-1">
-                                    {student.skillLevel || 3}★
-                                  </span>
+                                </div>
+                                <p className="text-emerald-400/60 text-[10px] mt-1 font-mono">SENHA: {student.password}</p>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                {/* Enrollment Access */}
+                                <div className="flex bg-black/80 rounded-xl p-1 gap-1 border border-emerald-900/60">
+                                  <button 
+                                    onClick={() => toggleStudentAllowed(student.id, true)}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${student.isAllowed ? 'bg-emerald-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                                    title="Liberar inscrição e acesso do aluno"
+                                  >
+                                    Liberar
+                                  </button>
+                                  <button 
+                                    onClick={() => toggleStudentAllowed(student.id, false)}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${!student.isAllowed ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                                    title="Bloquear inscrição do aluno"
+                                  >
+                                    Bloquear
+                                  </button>
+                                </div>
+
+                                {/* Individual Justification Authorization */}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleStudentCanJustify(student.id, !student.canJustify)}
+                                  className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border cursor-pointer ${
+                                    student.canJustify
+                                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.25)]'
+                                      : 'bg-black/80 text-emerald-400/50 border-emerald-900/60 hover:text-emerald-200 hover:border-emerald-700/60'
+                                  }`}
+                                  title={student.canJustify ? "Clique para revogar autorização de justificativa deste aluno" : "Clique para autorizar este aluno a justificar falta"}
+                                >
+                                  {student.canJustify ? (
+                                    <>
+                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                                      <span>Justificar: Liberado ✓</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Lock className="w-3 h-3 text-emerald-600/70" />
+                                      <span>Justificar: Bloqueado</span>
+                                    </>
+                                  )}
+                                </button>
+
+                                {/* Inserir e Gerenciar Convidados deste Aluno (Exclusivo Admin) */}
+                                <button
+                                  type="button"
+                                  onClick={() => setManagingGuestsStudentId(isManagingGuests ? null : student.id)}
+                                  className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border cursor-pointer ${
+                                    isManagingGuests
+                                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                                      : totalStudentGuests > 0
+                                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 hover:bg-amber-500/25'
+                                        : 'bg-black/80 text-emerald-400/70 border-emerald-900/60 hover:text-amber-300 hover:border-amber-500/40'
+                                  }`}
+                                  title="Inserir e gerenciar convidados vinculados a este aluno"
+                                >
+                                  <Users className="w-3 h-3" />
+                                  <span>{isManagingGuests ? 'Fechar' : 'Inserir Convidado'}</span>
+                                  {totalStudentGuests > 0 && (
+                                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none ${
+                                      isManagingGuests ? 'bg-slate-950 text-amber-400' : 'bg-amber-500 text-slate-950'
+                                    }`}>
+                                      {totalStudentGuests}
+                                    </span>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                            
+                            {student.isAllowed && (
+                              <div className="pt-3 border-t border-emerald-900/40 flex flex-col gap-2">
+                                <p className="text-[10px] uppercase font-black text-emerald-400/70 tracking-wider">Turmas Permitidas:</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {classes.map(c => {
+                                     const isChecked = student.allowedClasses ? student.allowedClasses.includes(c.id) : true;
+                                     return (
+                                       <button 
+                                         key={c.id} 
+                                         onClick={() => toggleStudentAllowedClass(student.id, c.id)}
+                                         className={`px-2.5 py-1 border rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer ${isChecked ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-black/60 text-slate-500 border-emerald-900/40'}`}
+                                       >
+                                         <div className={`w-3 h-3 rounded-sm flex items-center justify-center border ${isChecked ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'}`}>
+                                           {isChecked && <Check className="w-2 h-2 text-slate-950 font-bold" />}
+                                         </div>
+                                         {c.name}
+                                       </button>
+                                     );
+                                  })}
                                 </div>
                               </div>
-                              <p className="text-emerald-400/60 text-[10px] mt-1 font-mono">SENHA: {student.password}</p>
-                            </div>
+                            )}
 
-                            <div className="flex flex-wrap items-center gap-2 shrink-0">
-                              {/* Enrollment Access */}
-                              <div className="flex bg-black/80 rounded-xl p-1 gap-1 border border-emerald-900/60">
-                                <button 
-                                  onClick={() => toggleStudentAllowed(student.id, true)}
-                                  className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${student.isAllowed ? 'bg-emerald-400 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
-                                  title="Liberar inscrição e acesso do aluno"
-                                >
-                                  Liberar
-                                </button>
-                                <button 
-                                  onClick={() => toggleStudentAllowed(student.id, false)}
-                                  className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${!student.isAllowed ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
-                                  title="Bloquear inscrição do aluno"
-                                >
-                                  Bloquear
-                                </button>
+                            {/* Painel Exclusivo do Admin: Gestão e Inserção de Convidados deste Aluno */}
+                            {isManagingGuests && (
+                              <div className="pt-3 border-t border-amber-500/30 flex flex-col gap-3 bg-black/70 rounded-2xl p-4 border border-amber-500/20">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center text-xs">
+                                      👥
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-black uppercase text-amber-300 tracking-wide">
+                                        Convidados do Aluno: {student.name}
+                                      </h5>
+                                      <p className="text-[10px] text-emerald-400/70">
+                                        Exclusivo do Admin: insira convidados que aparecerão vinculados a este aluno nas listas e no sorteio.
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setManagingGuestsStudentId(null)}
+                                    className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+
+                                {/* Lista de convidados já cadastrados */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider">
+                                      Convidados Cadastrados ({totalStudentGuests}):
+                                    </p>
+                                    <span className="text-[9px] text-amber-400/80 font-mono">
+                                      Limite: até 2 por turma
+                                    </span>
+                                  </div>
+
+                                  {totalStudentGuests === 0 ? (
+                                    <div className="p-3 rounded-xl bg-black/50 border border-emerald-900/40 text-center text-[11px] text-slate-400">
+                                      Nenhum convidado cadastrado para este aluno ainda. Use o formulário abaixo para inserir.
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      {studentEnrollment?.guests && Object.entries(studentEnrollment.guests).map(([classId, gList]) => {
+                                        const guestNames = Array.isArray(gList) ? (gList as string[]) : [];
+                                        if (guestNames.length === 0) return null;
+                                        const targetClass = classes.find(c => c.id === classId);
+                                        const guestLevels = studentEnrollment.guestLevels?.[classId] || [3, 3];
+
+                                        return (
+                                          <div key={classId} className="bg-[#020d06] border border-emerald-900/60 rounded-xl p-3 space-y-2">
+                                            <div className="flex items-center justify-between pb-1 border-b border-emerald-900/40">
+                                              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                                                Turma: {targetClass?.name || 'Turma'}
+                                              </span>
+                                              <span className="text-[10px] font-mono text-slate-400">
+                                                {guestNames.length}/2 convidados
+                                              </span>
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                              {guestNames.map((gName, gIdx) => {
+                                                const currentLvl = guestLevels[gIdx] || 3;
+                                                return (
+                                                  <div key={gIdx} className="flex flex-wrap items-center justify-between gap-2 bg-black/80 border border-white/5 rounded-lg px-3 py-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-xs font-black text-amber-300 uppercase">
+                                                        {gName}
+                                                      </span>
+                                                      <span className="text-[9px] text-slate-400 italic">
+                                                        (Convidado de {student.name})
+                                                      </span>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2">
+                                                      {/* Ajuste de estrelas pelo Admin com 1 clique */}
+                                                      <div className="flex items-center gap-1 bg-black/90 border border-amber-400/30 px-2 py-0.5 rounded-md">
+                                                        <span className="text-[9px] font-black text-amber-400 mr-0.5">
+                                                          {currentLvl}★
+                                                        </span>
+                                                        {([1, 2, 3, 4, 5] as const).map(star => (
+                                                          <button
+                                                            key={star}
+                                                            type="button"
+                                                            onClick={() => handleAdminUpdateGuestLevelForStudent(student.id, classId, gIdx, star)}
+                                                            className={`text-[10px] leading-none transition-transform hover:scale-125 ${
+                                                              star <= currentLvl ? 'opacity-100 drop-shadow-[0_0_3px_rgba(250,204,21,0.6)]' : 'opacity-25 grayscale'
+                                                            }`}
+                                                            title={`Mudar para ${star} estrelas`}
+                                                          >
+                                                            ⭐
+                                                          </button>
+                                                        ))}
+                                                      </div>
+
+                                                      {/* Botão de Excluir Convidado */}
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => handleAdminRemoveGuestForStudent(student.id, classId, gIdx)}
+                                                        className="p-1 rounded-md text-rose-400 hover:text-white hover:bg-rose-500/20 transition-colors"
+                                                        title="Remover este convidado"
+                                                      >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Formulário de Inserção de Novo Convidado pelo Admin */}
+                                <div className="pt-3 border-t border-white/10 space-y-2">
+                                  <p className="text-[10px] uppercase font-black text-amber-400 tracking-wider flex items-center gap-1">
+                                    <Plus className="w-3 h-3" />
+                                    <span>Inserir Novo Convidado para {student.name}:</span>
+                                  </p>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                                    {/* Turma */}
+                                    <div className="sm:col-span-4">
+                                      <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Turma:</label>
+                                      <select
+                                        value={adminNewGuestClassId[student.id] || (classes[0]?.id || '')}
+                                        onChange={(e) => setAdminNewGuestClassId(prev => ({ ...prev, [student.id]: e.target.value }))}
+                                        className="w-full bg-slate-950 border border-emerald-900/60 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-400 transition-colors cursor-pointer"
+                                      >
+                                        {classes.map(c => (
+                                          <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+
+                                    {/* Nome */}
+                                    <div className="sm:col-span-5">
+                                      <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Nome do Convidado:</label>
+                                      <input
+                                        type="text"
+                                        placeholder="Nome completo do convidado..."
+                                        value={adminNewGuestName[student.id] || ''}
+                                        onChange={(e) => setAdminNewGuestName(prev => ({ ...prev, [student.id]: e.target.value }))}
+                                        className="w-full bg-slate-950 border border-emerald-900/60 rounded-xl px-3 py-2 text-xs text-white uppercase focus:outline-none focus:border-amber-400 transition-colors placeholder:normal-case placeholder:text-slate-600"
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            const targetClassId = adminNewGuestClassId[student.id] || classes[0]?.id;
+                                            const gName = (adminNewGuestName[student.id] || '').trim();
+                                            const gLevel = adminNewGuestLevel[student.id] || 3;
+                                            if (targetClassId && gName) {
+                                              handleAdminAddGuestForStudent(student.id, targetClassId, gName, gLevel);
+                                              setAdminNewGuestName(prev => ({ ...prev, [student.id]: '' }));
+                                            }
+                                          }
+                                        }}
+                                      />
+                                    </div>
+
+                                    {/* Nível de estrelas */}
+                                    <div className="sm:col-span-3">
+                                      <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Nível de Jogo:</label>
+                                      <div className="flex items-center justify-between bg-slate-950 border border-emerald-900/60 rounded-xl px-2 py-1.5 h-[38px]">
+                                        <span className="text-[10px] font-bold text-amber-400">
+                                          {adminNewGuestLevel[student.id] || 3}★
+                                        </span>
+                                        <div className="flex items-center gap-0.5">
+                                          {([1, 2, 3, 4, 5] as const).map(lvl => (
+                                            <button
+                                              key={lvl}
+                                              type="button"
+                                              onClick={() => setAdminNewGuestLevel(prev => ({ ...prev, [student.id]: lvl }))}
+                                              className={`text-[11px] leading-none transition-transform hover:scale-125 ${
+                                                lvl <= (adminNewGuestLevel[student.id] || 3) ? 'opacity-100 drop-shadow-[0_0_3px_rgba(250,204,21,0.6)]' : 'opacity-25 grayscale'
+                                              }`}
+                                              title={`${lvl} estrelas`}
+                                            >
+                                              ⭐
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    disabled={!(adminNewGuestName[student.id] || '').trim()}
+                                    onClick={() => {
+                                      const targetClassId = adminNewGuestClassId[student.id] || classes[0]?.id;
+                                      const gName = (adminNewGuestName[student.id] || '').trim();
+                                      const gLevel = adminNewGuestLevel[student.id] || 3;
+                                      if (targetClassId && gName) {
+                                        handleAdminAddGuestForStudent(student.id, targetClassId, gName, gLevel);
+                                        setAdminNewGuestName(prev => ({ ...prev, [student.id]: '' }));
+                                      }
+                                    }}
+                                    className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-40 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 cursor-pointer mt-1"
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    <span>Inserir Convidado para {student.name}</span>
+                                  </button>
+                                </div>
                               </div>
-
-                              {/* Individual Justification Authorization */}
-                              <button
-                                type="button"
-                                onClick={() => toggleStudentCanJustify(student.id, !student.canJustify)}
-                                className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border cursor-pointer ${
-                                  student.canJustify
-                                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.25)]'
-                                    : 'bg-black/80 text-emerald-400/50 border-emerald-900/60 hover:text-emerald-200 hover:border-emerald-700/60'
-                                }`}
-                                title={student.canJustify ? "Clique para revogar autorização de justificativa deste aluno" : "Clique para autorizar este aluno a justificar falta"}
-                              >
-                                {student.canJustify ? (
-                                  <>
-                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-                                    <span>Justificar: Liberado ✓</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Lock className="w-3 h-3 text-emerald-600/70" />
-                                    <span>Justificar: Bloqueado</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
+                            )}
                           </div>
-                          
-                          {student.isAllowed && (
-                            <div className="pt-3 border-t border-emerald-900/40 flex flex-col gap-2">
-                              <p className="text-[10px] uppercase font-black text-emerald-400/70 tracking-wider">Turmas Permitidas:</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {classes.map(c => {
-                                   const isChecked = student.allowedClasses ? student.allowedClasses.includes(c.id) : true;
-                                   return (
-                                     <button 
-                                       key={c.id} 
-                                       onClick={() => toggleStudentAllowedClass(student.id, c.id)}
-                                       className={`px-2.5 py-1 border rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer ${isChecked ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-black/60 text-slate-500 border-emerald-900/40'}`}
-                                     >
-                                       <div className={`w-3 h-3 rounded-sm flex items-center justify-center border ${isChecked ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'}`}>
-                                         {isChecked && <Check className="w-2 h-2 text-slate-950 font-bold" />}
-                                       </div>
-                                       {c.name}
-                                     </button>
-                                   );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -3028,239 +3414,80 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Selector Tabs: Turmas vs Inserir Convidado */}
-                        <div className="grid grid-cols-2 gap-2 p-1.5 bg-black/80 rounded-2xl border border-emerald-900/50 mb-6">
-                          <button
-                            type="button"
-                            onClick={() => setEnrollmentSubTab('classes')}
-                            className={`py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                              enrollmentSubTab === 'classes'
-                                ? 'bg-emerald-500 text-slate-950 font-black shadow-[0_0_15px_rgba(16,185,129,0.35)]'
-                                : 'text-emerald-400/70 hover:text-white hover:bg-emerald-950/40'
-                            }`}
-                          >
-                            <span>Minhas Turmas</span>
-                            {selectedClasses.length > 0 && (
-                              <span className="bg-slate-950 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                                {selectedClasses.length}
-                              </span>
-                            )}
-                          </button>
-                          
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEnrollmentSubTab('guests');
-                              if (!guestClassId && availableClasses.length > 0) {
-                                setGuestClassId(selectedClasses[0] || availableClasses[0].id);
-                              }
-                            }}
-                            className={`py-3 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                              enrollmentSubTab === 'guests'
-                                ? 'bg-amber-400 text-slate-950 font-black shadow-[0_0_15px_rgba(245,158,11,0.35)]'
-                                : 'text-emerald-400/70 hover:text-white hover:bg-emerald-950/40'
-                            }`}
-                          >
-                            <Users className="w-3.5 h-3.5" />
-                            <span>Inserir Convidado</span>
-                            {totalGuestsCount > 0 && (
-                              <span className="bg-slate-950 text-amber-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                                {totalGuestsCount}
-                              </span>
-                            )}
-                          </button>
-                        </div>
-
-                        {/* SUBTAB 1: TURMAS */}
-                        {enrollmentSubTab === 'classes' && (
-                          <div className="flex-1 max-h-[380px] overflow-y-auto custom-scrollbar pr-2 space-y-3 mb-6">
-                            <p className="text-xs text-slate-400 mb-3">
-                              Marque as turmas em que você vai participar esta semana:
+                        {/* Lista de Turmas Abertas para o Aluno */}
+                        <div className="flex-1 max-h-[420px] overflow-y-auto custom-scrollbar pr-2 space-y-3 mb-6">
+                          <div className="flex items-center justify-between pb-1">
+                            <p className="text-xs text-slate-300 font-bold uppercase tracking-wider">
+                              Selecione as turmas em que você vai jogar:
                             </p>
-                            {availableClasses.map(c => {
-                              const isSelected = selectedClasses.includes(c.id);
-                              const classGuests = (selectedGuests[c.id] || []).filter(g => g.trim().length > 0).slice(0, 2);
+                            <span className="text-[10px] text-emerald-400 font-mono">
+                              {selectedClasses.length} de {availableClasses.length} selecionadas
+                            </span>
+                          </div>
 
-                              return (
-                                <div 
-                                  key={c.id} 
-                                  className={`rounded-2xl transition-all border p-4 md:p-5 ${
-                                    isSelected 
-                                      ? 'bg-emerald-500/10 border-emerald-400 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.18)]' 
-                                      : 'bg-slate-950/60 border-white/10 hover:border-white/20 text-slate-300'
-                                  }`}
-                                >
-                                  <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleStudentClass(c.id)}>
-                                    <div>
+                          {availableClasses.map(c => {
+                            const isSelected = selectedClasses.includes(c.id);
+                            const existingEnr = enrollments.find(e => e.studentId === selectedStudentId);
+                            const adminGuestsForClass = (existingEnr?.guests?.[c.id] || []).filter(g => (g || '').trim().length > 0);
+
+                            return (
+                              <div 
+                                key={c.id} 
+                                className={`rounded-2xl transition-all border p-4 md:p-5 ${
+                                  isSelected 
+                                    ? 'bg-emerald-500/10 border-emerald-400 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.18)]' 
+                                    : 'bg-slate-950/60 border-white/10 hover:border-white/20 text-slate-300'
+                                }`}
+                              >
+                                <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleStudentClass(c.id)}>
+                                  <div>
+                                    <div className="flex items-center gap-2">
                                       <span className="text-sm md:text-base font-black uppercase tracking-tight">
                                         {c.name}
                                       </span>
-                                      <p className={`text-xs mt-1 ${isSelected ? 'text-emerald-400/80' : 'text-slate-400'}`}>
-                                        {c.description}
-                                      </p>
-                                    </div>
-                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${
-                                      isSelected ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'
-                                    }`}>
-                                      {isSelected && <Check className="w-3.5 h-3.5 text-slate-950 font-bold" />}
-                                    </div>
-                                  </div>
-
-                                  <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setGuestClassId(c.id);
-                                        setEnrollmentSubTab('guests');
-                                      }}
-                                      className="text-[11px] font-bold text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1.5 uppercase tracking-wide cursor-pointer"
-                                    >
-                                      <Users className="w-3.5 h-3.5" />
-                                      {classGuests.length > 0 ? `+ Gerenciar convidados (${classGuests.length})` : '+ Inserir Convidado nesta turma'}
-                                    </button>
-                                    {isSelected && (
-                                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                                        Você inscrito
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {/* SUBTAB 2: INSERIR CONVIDADO */}
-                        {enrollmentSubTab === 'guests' && (
-                          <div className="flex-1 max-h-[380px] overflow-y-auto custom-scrollbar pr-2 space-y-4 mb-6">
-                            <div>
-                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
-                                1. Selecione a turma do convidado:
-                              </span>
-                              <div className="flex flex-wrap gap-2">
-                                {availableClasses.map(c => {
-                                  const isCurrent = (activeGuestClass?.id === c.id);
-                                  const cGuests = (selectedGuests[c.id] || []).filter(g => g.trim().length > 0).slice(0, 2);
-                                  return (
-                                    <button
-                                      key={c.id}
-                                      type="button"
-                                      onClick={() => setGuestClassId(c.id)}
-                                      className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border cursor-pointer ${
-                                        isCurrent
-                                          ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.35)]'
-                                          : 'bg-slate-950/70 text-slate-300 border-white/10 hover:border-white/20'
-                                      }`}
-                                    >
-                                      <span>{c.name}</span>
-                                      {cGuests.length > 0 && (
-                                        <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
-                                          isCurrent ? 'bg-slate-950 text-amber-300' : 'bg-amber-500/20 text-amber-300'
-                                        }`}>
-                                          {cGuests.length}
+                                      {isSelected && (
+                                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                                          Inscrito
                                         </span>
                                       )}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {activeGuestClass && (
-                              <div className="bg-slate-950/80 border border-amber-400/30 rounded-2xl p-4 md:p-5 shadow-lg space-y-4">
-                                <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                                  <div>
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
-                                      Turma do Convidado:
-                                    </span>
-                                    <h4 className="text-base md:text-lg font-black text-white uppercase tracking-tight">
-                                      {activeGuestClass.name}
-                                    </h4>
+                                    </div>
+                                    <p className={`text-xs mt-1 ${isSelected ? 'text-emerald-400/80' : 'text-slate-400'}`}>
+                                      {c.description}
+                                    </p>
                                   </div>
-                                  <span className="text-[10px] font-black text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-lg uppercase tracking-wider shrink-0">
-                                    Máx. 2 convidados
-                                  </span>
+                                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${
+                                    isSelected ? 'bg-emerald-400 border-emerald-400' : 'border-slate-600'
+                                  }`}>
+                                    {isSelected && <Check className="w-3.5 h-3.5 text-slate-950 font-bold" />}
+                                  </div>
                                 </div>
 
-                                <p className="text-[11px] text-slate-400 leading-relaxed">
-                                  Insira os convidados para <strong className="text-white">{activeGuestClass.name}</strong>. Na lista oficial, eles aparecerão como <strong className="text-amber-300 font-bold">(CONVIDADO DE {studentName})</strong>.
-                                </p>
-
-                                <div className="space-y-4">
-                                  {/* Convidado 1 */}
-                                  <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-300">
-                                      1º Convidado:
-                                    </label>
-                                    <div className="flex items-center gap-2">
-                                      <input 
-                                        type="text"
-                                        placeholder="Nome do 1º convidado (opcional)"
-                                        value={selectedGuests[activeGuestClass.id]?.[0] || ''}
-                                        onChange={(e) => handleGuestChange(activeGuestClass.id, 0, e.target.value)}
-                                        maxLength={50}
-                                        className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
-                                      />
-                                      {selectedGuests[activeGuestClass.id]?.[0] && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleGuestChange(activeGuestClass.id, 0, '')}
-                                          className="text-slate-500 hover:text-rose-400 p-2 rounded-lg transition-colors shrink-0"
-                                          title="Limpar nome"
-                                        >
-                                          <X className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                    </div>
-
-                                    {selectedGuests[activeGuestClass.id]?.[0]?.trim() && (
-                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/25 rounded-xl p-2.5 mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                {/* Convidados inseridos pelo admin para este aluno */}
+                                {adminGuestsForClass.length > 0 && (
+                                  <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-1.5 text-amber-300 font-bold">
+                                      <Users className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                                       <span>
-                                          Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][0].trim()} (CONVIDADO DE {studentName})</strong>
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Convidado 2 */}
-                                  <div className="space-y-2 pt-3 border-t border-white/10">
-                                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-300">
-                                      2º Convidado:
-                                    </label>
-                                    <div className="flex items-center gap-2">
-                                      <input 
-                                        type="text"
-                                        placeholder="Nome do 2º convidado (opcional)"
-                                        value={selectedGuests[activeGuestClass.id]?.[1] || ''}
-                                        onChange={(e) => handleGuestChange(activeGuestClass.id, 1, e.target.value)}
-                                        maxLength={50}
-                                        className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white uppercase placeholder:normal-case placeholder:text-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
-                                      />
-                                      {selectedGuests[activeGuestClass.id]?.[1] && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleGuestChange(activeGuestClass.id, 1, '')}
-                                          className="text-slate-500 hover:text-rose-400 p-2 rounded-lg transition-colors shrink-0"
-                                          title="Limpar nome"
-                                        >
-                                          <X className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
+                                        Convidado vinculado: <strong className="text-white uppercase">{adminGuestsForClass.join(', ')}</strong>
+                                      </span>
                                     </div>
-
-                                    {selectedGuests[activeGuestClass.id]?.[1]?.trim() && (
-                                      <div className="text-[10px] text-amber-300/90 font-medium bg-amber-500/10 border border-amber-500/25 rounded-xl p-2.5 mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                                        <span>
-                                          Aparecerá na lista: <strong className="text-amber-200 uppercase">{selectedGuests[activeGuestClass.id][1].trim()} (CONVIDADO DE {studentName})</strong>
-                                        </span>
-                                      </div>
-                                    )}
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-amber-400/80 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                                      Inserido pelo Admin
+                                    </span>
                                   </div>
-                                </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        )}
+                            );
+                          })}
+                        </div>
+
+                        {/* Aviso sobre convidados serem exclusivos do admin */}
+                        <div className="bg-slate-950/60 border border-emerald-500/20 rounded-2xl p-3 mb-4 text-[11px] text-emerald-300/80 flex items-center gap-2">
+                          <Users className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <span>
+                            Deseja levar um convidado? A inclusão de convidados é feita <strong className="text-white">exclusivamente pelo Professor/Administrador</strong>.
+                          </span>
+                        </div>
 
                         {/* Summary of selections */}
                         <div className="bg-slate-950/70 rounded-2xl p-4 mb-4 border border-white/10 text-xs text-slate-400 flex flex-col gap-2">
@@ -3279,12 +3506,28 @@ export default function App() {
                                 : "Nenhuma"}
                             </strong>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span>Convidados inseridos:</span>
-                            <strong className="text-amber-400">
-                              {totalGuestsCount > 0 ? `${totalGuestsCount} convidado(s)` : "Nenhum"}
-                            </strong>
-                          </div>
+                          {(() => {
+                            const existingEnr = enrollments.find(e => e.studentId === selectedStudentId);
+                            const guestNames: string[] = [];
+                            if (existingEnr?.guests) {
+                              Object.values(existingEnr.guests).forEach(list => {
+                                if (Array.isArray(list)) {
+                                  list.forEach(g => {
+                                    if (typeof g === 'string' && g.trim()) guestNames.push(g.trim());
+                                  });
+                                }
+                              });
+                            }
+                            if (guestNames.length === 0) return null;
+                            return (
+                              <div className="flex justify-between items-center pt-1 border-t border-white/5">
+                                <span>Seus convidados (autorizados pelo admin):</span>
+                                <strong className="text-amber-300 uppercase">
+                                  {guestNames.join(", ")}
+                                </strong>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </>
                     );
@@ -3872,28 +4115,16 @@ export default function App() {
                                         {p.enrolledIndex}
                                       </div>
 
-                                      <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2 flex-1 min-w-0">
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                          <span className={`text-xs sm:text-sm font-black uppercase truncate ${
-                                            p.isGuest ? 'text-amber-300' : 'text-emerald-50'
-                                          }`}>
-                                            {p.name}
+                                      <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
+                                        <span className={`text-xs sm:text-sm font-black uppercase truncate ${
+                                          p.isGuest ? 'text-amber-300' : 'text-emerald-50'
+                                        }`}>
+                                          {p.name}
+                                        </span>
+                                        {p.isGuest && (
+                                          <span className="text-[10px] font-black text-amber-400 uppercase tracking-wide shrink-0">
+                                            {p.guestOf && p.guestOf !== 'Admin' ? `(CONVIDADO DE ${p.guestOf})` : '(CONVIDADO)'}
                                           </span>
-                                          {p.isGuest && (
-                                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-wide shrink-0">
-                                              {p.guestOf && p.guestOf !== 'Admin' ? `(CONVIDADO DE ${p.guestOf})` : '(CONVIDADO)'}
-                                            </span>
-                                          )}
-                                        </div>
-
-                                        {p.sportsClasses.length > 0 && (
-                                          <div className="flex items-center gap-1 flex-wrap">
-                                            {p.sportsClasses.map(sc => (
-                                              <span key={sc} className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                                                {sc}
-                                              </span>
-                                            ))}
-                                          </div>
                                         )}
                                       </div>
 
